@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="theme-color" content="#000000">
+    <title>elm-codepress</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/styles/atom-one-dark.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/2.8.0/github-markdown.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/languages/elm.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/languages/elixir.min.js"></script>
+    <script src="elm.js"></script>
+    <style>
+    body, html, #root {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    .presentation {
+      position: absolute;
+      width: 95%;
+      height: 90%;
+      left: 50%;
+      top: 20%;
+      transform: translate(-50%, -20%);
+    }
+    .pane {
+      overflow-y: auto;
+      overflow-x: hidden;
+      border: 1px solid #222430;
+      background-color: #282a36;
+      box-sizing: border-box;
+      width: 50%;
+      height: 100%;
+      display: inline-block;
+    }
+    pre {
+      color: #686972;
+      margin: 0;
+      padding: 0;
+    }
+    .note {
+      position: absolute;
+      background-color: #fff;
+      padding: 5px 10px;
+      font-size: 20px;
+      bottom: 30px;
+      left: 50%;
+      transform: translate(-50%, 0%);
+    }
+    </style>
+  </head>
+  <body>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
+    <div id="root"></div>
+    <script>
+    var app = Elm.Main.embed(document.getElementById('root'));
+</script>
+  </body>
+</html>
