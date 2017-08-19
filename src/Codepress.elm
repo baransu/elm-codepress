@@ -1,4 +1,4 @@
-module Codepress exposing (Range, Options, toHtml, left, right)
+module Codepress exposing (State, Options, toHtml, Pane(..))
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -9,31 +9,25 @@ import List.Extra as EList
 -- PUBLIC API
 
 
-left : Int -> Int -> Highlight
-left a b =
-    ( Left, ( a, b ) )
-
-
-right : Int -> Int -> Highlight
-right a b =
-    ( Right, ( a, b ) )
-
-
 toHtml : Options -> Html msg
 toHtml =
     view
 
 
-type alias Range =
+type Pane
+    = Left
+    | Right
+
+
+type alias State =
     { highlights : List Highlight
+    , code : List Code
     , note : String
     }
 
 
 type alias Options =
-    { left : String
-    , right : String
-    , ranges : List Range
+    { states : List State
     , position : Int
     }
 
@@ -42,13 +36,12 @@ type alias Options =
 -- PRIVATE API
 
 
+type alias Code =
+    ( Pane, String )
+
+
 type alias Highlight =
     ( Pane, ( Int, Int ) )
-
-
-type Pane
-    = Left
-    | Right
 
 
 activeStyle : Bool -> List ( String, String )
@@ -59,67 +52,105 @@ activeStyle active =
         []
 
 
-getRangeAt : List Range -> Int -> Maybe Range
-getRangeAt ranges position =
-    EList.getAt position ranges
+getStateAt : List State -> Int -> Maybe State
+getStateAt states position =
+    EList.getAt position states
 
 
-findHighlight : Pane -> Range -> Maybe Highlight
-findHighlight pane range =
+findHighlight : Pane -> State -> Maybe Highlight
+findHighlight pane state =
     EList.find
         (\( p, _ ) -> p == pane)
-        range.highlights
+        state.highlights
 
 
-lineOfCode : List Range -> Pane -> Int -> Int -> String -> Html msg
-lineOfCode ranges pane position index str =
+findCode : Pane -> State -> Maybe Code
+findCode pane state =
+    EList.find
+        (\( p, _ ) -> p == pane)
+        state.code
+
+
+toText : a -> Html msg
+toText =
+    text << toString
+
+
+inHighlight : Pane -> State -> Int -> Bool
+inHighlight pane state index =
+    let
+        ( start, end ) =
+            case findHighlight pane state of
+                Just ( _, positions ) ->
+                    positions
+
+                _ ->
+                    ( -1, -1 )
+    in
+        index >= start && index <= end
+
+
+lineOfCode : Pane -> Maybe State -> Int -> String -> Html msg
+lineOfCode pane state index str =
     let
         active =
-            case getRangeAt ranges position of
-                Just range ->
-                    let
-                        ( start, end ) =
-                            case findHighlight pane range of
-                                Just ( _, positions ) ->
-                                    positions
-
-                                _ ->
-                                    ( -1, -1 )
-                    in
-                        index >= start && index <= end
+            case state of
+                Just state ->
+                    inHighlight pane state index
 
                 _ ->
                     False
     in
         pre
             [ style (activeStyle active) ]
-            [ code [] [ (text << toString) index, text (" " ++ str) ]
+            [ code [] [ toText index, text (" " ++ str) ]
             ]
+
+
+viewPane : Pane -> Maybe State -> List (Html msg)
+viewPane pane state =
+    let
+        code =
+            case state of
+                Just state ->
+                    case findCode pane state of
+                        Just ( _, code ) ->
+                            code
+
+                        Nothing ->
+                            ""
+
+                Nothing ->
+                    ""
+    in
+        if code == "" then
+            []
+        else
+            code |> String.lines |> List.indexedMap (lineOfCode pane state)
 
 
 view : Options -> Html msg
 view options =
-    div [ class "presentation" ]
-        [ div [ class "pane left" ] <| viewPane Left options.left options
-        , div [ class "pane right" ] <| viewPane Right options.right options
-        , viewNote options.ranges options.position
-        ]
+    let
+        state =
+            getStateAt options.states options.position
+    in
+        div [ class "presentation" ]
+            [ div [ class "pane left" ] <| viewPane Left state
+            , div [ class "pane right" ] <| viewPane Right state
+            , viewNote options
+            ]
 
 
-viewPane : Pane -> String -> Options -> List (Html msg)
-viewPane pane code { ranges, position } =
-    code |> String.lines |> List.indexedMap (lineOfCode ranges pane position)
-
-
-viewNote : List Range -> Int -> Html msg
-viewNote ranges position =
-    case getRangeAt ranges position of
-        Just range ->
-            if range.note == "" then
+viewNote : Options -> Html msg
+viewNote { states, position } =
+    case getStateAt states position of
+        Just { note } ->
+            if note == "" then
                 div [] []
             else
                 div [ class "note" ]
-                    [ Markdown.toHtml [ class "markdown-body" ] range.note
+                    [ Markdown.toHtml [ class "markdown-body" ] note
                     ]
 
         Nothing ->

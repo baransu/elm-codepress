@@ -10395,54 +10395,82 @@ var _evancz$elm_markdown$Markdown$Options = F4(
 		return {githubFlavored: a, defaultHighlighting: b, sanitize: c, smartypants: d};
 	});
 
-var _user$project$Codepress$findHighlight = F2(
-	function (pane, range) {
+var _user$project$Codepress$toText = function (_p0) {
+	return _elm_lang$html$Html$text(
+		_elm_lang$core$Basics$toString(_p0));
+};
+var _user$project$Codepress$findCode = F2(
+	function (pane, state) {
 		return A2(
 			_elm_community$list_extra$List_Extra$find,
-			function (_p0) {
-				var _p1 = _p0;
-				return _elm_lang$core$Native_Utils.eq(_p1._0, pane);
+			function (_p1) {
+				var _p2 = _p1;
+				return _elm_lang$core$Native_Utils.eq(_p2._0, pane);
 			},
-			range.highlights);
+			state.code);
 	});
-var _user$project$Codepress$getRangeAt = F2(
-	function (ranges, position) {
-		return A2(_elm_community$list_extra$List_Extra$getAt, position, ranges);
+var _user$project$Codepress$findHighlight = F2(
+	function (pane, state) {
+		return A2(
+			_elm_community$list_extra$List_Extra$find,
+			function (_p3) {
+				var _p4 = _p3;
+				return _elm_lang$core$Native_Utils.eq(_p4._0, pane);
+			},
+			state.highlights);
 	});
-var _user$project$Codepress$viewNote = F2(
-	function (ranges, position) {
-		var _p2 = A2(_user$project$Codepress$getRangeAt, ranges, position);
-		if (_p2.ctor === 'Just') {
-			var _p3 = _p2._0;
-			return _elm_lang$core$Native_Utils.eq(_p3.note, '') ? A2(
-				_elm_lang$html$Html$div,
-				{ctor: '[]'},
-				{ctor: '[]'}) : A2(
-				_elm_lang$html$Html$div,
-				{
-					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('note'),
-					_1: {ctor: '[]'}
-				},
-				{
-					ctor: '::',
-					_0: A2(
-						_evancz$elm_markdown$Markdown$toHtml,
-						{
-							ctor: '::',
-							_0: _elm_lang$html$Html_Attributes$class('markdown-body'),
-							_1: {ctor: '[]'}
-						},
-						_p3.note),
-					_1: {ctor: '[]'}
-				});
-		} else {
-			return A2(
-				_elm_lang$html$Html$div,
-				{ctor: '[]'},
-				{ctor: '[]'});
-		}
+var _user$project$Codepress$inHighlight = F3(
+	function (pane, state, index) {
+		var _p5 = function () {
+			var _p6 = A2(_user$project$Codepress$findHighlight, pane, state);
+			if ((_p6.ctor === 'Just') && (_p6._0.ctor === '_Tuple2')) {
+				return _p6._0._1;
+			} else {
+				return {ctor: '_Tuple2', _0: -1, _1: -1};
+			}
+		}();
+		var start = _p5._0;
+		var end = _p5._1;
+		return (_elm_lang$core$Native_Utils.cmp(index, start) > -1) && (_elm_lang$core$Native_Utils.cmp(index, end) < 1);
 	});
+var _user$project$Codepress$getStateAt = F2(
+	function (states, position) {
+		return A2(_elm_community$list_extra$List_Extra$getAt, position, states);
+	});
+var _user$project$Codepress$viewNote = function (_p7) {
+	var _p8 = _p7;
+	var _p9 = A2(_user$project$Codepress$getStateAt, _p8.states, _p8.position);
+	if (_p9.ctor === 'Just') {
+		var _p10 = _p9._0.note;
+		return _elm_lang$core$Native_Utils.eq(_p10, '') ? A2(
+			_elm_lang$html$Html$div,
+			{ctor: '[]'},
+			{ctor: '[]'}) : A2(
+			_elm_lang$html$Html$div,
+			{
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$class('note'),
+				_1: {ctor: '[]'}
+			},
+			{
+				ctor: '::',
+				_0: A2(
+					_evancz$elm_markdown$Markdown$toHtml,
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html_Attributes$class('markdown-body'),
+						_1: {ctor: '[]'}
+					},
+					_p10),
+				_1: {ctor: '[]'}
+			});
+	} else {
+		return A2(
+			_elm_lang$html$Html$div,
+			{ctor: '[]'},
+			{ctor: '[]'});
+	}
+};
 var _user$project$Codepress$activeStyle = function (active) {
 	return _elm_lang$core$Native_Utils.eq(active, true) ? {
 		ctor: '::',
@@ -10450,22 +10478,12 @@ var _user$project$Codepress$activeStyle = function (active) {
 		_1: {ctor: '[]'}
 	} : {ctor: '[]'};
 };
-var _user$project$Codepress$lineOfCode = F5(
-	function (ranges, pane, position, index, str) {
+var _user$project$Codepress$lineOfCode = F4(
+	function (pane, state, index, str) {
 		var active = function () {
-			var _p4 = A2(_user$project$Codepress$getRangeAt, ranges, position);
-			if (_p4.ctor === 'Just') {
-				var _p5 = function () {
-					var _p6 = A2(_user$project$Codepress$findHighlight, pane, _p4._0);
-					if ((_p6.ctor === 'Just') && (_p6._0.ctor === '_Tuple2')) {
-						return _p6._0._1;
-					} else {
-						return {ctor: '_Tuple2', _0: -1, _1: -1};
-					}
-				}();
-				var start = _p5._0;
-				var end = _p5._1;
-				return (_elm_lang$core$Native_Utils.cmp(index, start) > -1) && (_elm_lang$core$Native_Utils.cmp(index, end) < 1);
+			var _p11 = state;
+			if (_p11.ctor === 'Just') {
+				return A3(_user$project$Codepress$inHighlight, pane, _p11._0, index);
 			} else {
 				return false;
 			}
@@ -10485,10 +10503,7 @@ var _user$project$Codepress$lineOfCode = F5(
 					{ctor: '[]'},
 					{
 						ctor: '::',
-						_0: function (_p7) {
-							return _elm_lang$html$Html$text(
-								_elm_lang$core$Basics$toString(_p7));
-						}(index),
+						_0: _user$project$Codepress$toText(index),
 						_1: {
 							ctor: '::',
 							_0: _elm_lang$html$Html$text(
@@ -10499,41 +10514,38 @@ var _user$project$Codepress$lineOfCode = F5(
 				_1: {ctor: '[]'}
 			});
 	});
-var _user$project$Codepress$viewPane = F3(
-	function (pane, code, _p8) {
-		var _p9 = _p8;
-		return A2(
+var _user$project$Codepress$viewPane = F2(
+	function (pane, state) {
+		var code = function () {
+			var _p12 = state;
+			if (_p12.ctor === 'Just') {
+				var _p13 = A2(_user$project$Codepress$findCode, pane, _p12._0);
+				if (_p13.ctor === 'Just') {
+					return _p13._0._1;
+				} else {
+					return '';
+				}
+			} else {
+				return '';
+			}
+		}();
+		return _elm_lang$core$Native_Utils.eq(code, '') ? {ctor: '[]'} : A2(
 			_elm_lang$core$List$indexedMap,
-			A3(_user$project$Codepress$lineOfCode, _p9.ranges, pane, _p9.position),
+			A2(_user$project$Codepress$lineOfCode, pane, state),
 			_elm_lang$core$String$lines(code));
 	});
-var _user$project$Codepress$Range = F2(
-	function (a, b) {
-		return {highlights: a, note: b};
+var _user$project$Codepress$State = F3(
+	function (a, b, c) {
+		return {highlights: a, code: b, note: c};
 	});
-var _user$project$Codepress$Options = F4(
-	function (a, b, c, d) {
-		return {left: a, right: b, ranges: c, position: d};
+var _user$project$Codepress$Options = F2(
+	function (a, b) {
+		return {states: a, position: b};
 	});
 var _user$project$Codepress$Right = {ctor: 'Right'};
-var _user$project$Codepress$right = F2(
-	function (a, b) {
-		return {
-			ctor: '_Tuple2',
-			_0: _user$project$Codepress$Right,
-			_1: {ctor: '_Tuple2', _0: a, _1: b}
-		};
-	});
 var _user$project$Codepress$Left = {ctor: 'Left'};
-var _user$project$Codepress$left = F2(
-	function (a, b) {
-		return {
-			ctor: '_Tuple2',
-			_0: _user$project$Codepress$Left,
-			_1: {ctor: '_Tuple2', _0: a, _1: b}
-		};
-	});
 var _user$project$Codepress$view = function (options) {
+	var state = A2(_user$project$Codepress$getStateAt, options.states, options.position);
 	return A2(
 		_elm_lang$html$Html$div,
 		{
@@ -10550,7 +10562,7 @@ var _user$project$Codepress$view = function (options) {
 					_0: _elm_lang$html$Html_Attributes$class('pane left'),
 					_1: {ctor: '[]'}
 				},
-				A3(_user$project$Codepress$viewPane, _user$project$Codepress$Left, options.left, options)),
+				A2(_user$project$Codepress$viewPane, _user$project$Codepress$Left, state)),
 			_1: {
 				ctor: '::',
 				_0: A2(
@@ -10560,10 +10572,10 @@ var _user$project$Codepress$view = function (options) {
 						_0: _elm_lang$html$Html_Attributes$class('pane right'),
 						_1: {ctor: '[]'}
 					},
-					A3(_user$project$Codepress$viewPane, _user$project$Codepress$Right, options.right, options)),
+					A2(_user$project$Codepress$viewPane, _user$project$Codepress$Right, state)),
 				_1: {
 					ctor: '::',
-					_0: A2(_user$project$Codepress$viewNote, options.ranges, options.position),
+					_0: _user$project$Codepress$viewNote(options),
 					_1: {ctor: '[]'}
 				}
 			}
@@ -10572,137 +10584,356 @@ var _user$project$Codepress$view = function (options) {
 var _user$project$Codepress$toHtml = _user$project$Codepress$view;
 
 var _user$project$Main$init = {ctor: '_Tuple2', _0: 0, _1: _elm_lang$core$Platform_Cmd$none};
-var _user$project$Main$rightCode = '# Compiled using Elchemy v0.4.13\ndefmodule FizzBuzz do\n  use Elchemy\n\n  @spec fizzbuzz(integer, integer) :: String.t\n  curry fizzbuzz/2\n  def fizzbuzz(from, to) do\n    fizz_buzz = fn(n) -> case {rem(n, 3), rem(n, 5)} do\n      {0, 0} ->\n        \"FizzBuzz\"\n      {0, _} ->\n        \"Fizz\"\n      {_, 0} ->\n        \"Buzz\"\n      _ ->\n        to_string().(n)\n    end end\n    XList.range.(from).(to)\n    |> (map().((fizz_buzz >>> to_string()))).()\n    |> (join_words()).()\n  end\n\n  @spec join_words(list(String.t)) :: String.t\n  curryp join_words/1\n  defp join_words(a) do\n    XString.join.(\" \").(a)\n  end\n\nend';
-var _user$project$Main$leftCode = 'module FizzBuzz exposing (fizzbuzz)\n\n\nfizzbuzz : Int -> Int -> String\nfizzbuzz from to =\n  let\n    fizzBuzz n =\n        case (n % 3, n % 5) of\n            (0, 0) -> \"FizzBuzz\"\n            (0, _) -> \"Fizz\"\n            (_, 0) -> \"Buzz\"\n            _      -> toString n\n  in List.range from to |> map (fizzBuzz >> toString) |> joinWords\n\n\njoinWords : List String -> String\njoinWords a = String.join \" \" a';
-var _user$project$Main$ranges = {
+var _user$project$Main$defaultCode = {ctor: '[]'};
+var _user$project$Main_ops = _user$project$Main_ops || {};
+_user$project$Main_ops['>>'] = F2(
+	function (a, b) {
+		return {ctor: '_Tuple2', _0: a, _1: b};
+	});
+var _user$project$Main$right = '# Compiled using Elchemy v0.4.13\ndefmodule FizzBuzz do\n  use Elchemy\n\n  @spec fizzbuzz(integer, integer) :: String.t\n  curry fizzbuzz/2\n  def fizzbuzz(from, to) do\n    fizz_buzz = fn(n) -> case {rem(n, 3), rem(n, 5)} do\n      {0, 0} ->\n        \"FizzBuzz\"\n      {0, _} ->\n        \"Fizz\"\n      {_, 0} ->\n        \"Buzz\"\n      _ ->\n        to_string().(n)\n    end end\n    XList.range.(from).(to)\n    |> (map().((fizz_buzz >>> to_string()))).()\n    |> (join_words()).()\n  end\n\n  @spec join_words(list(String.t)) :: String.t\n  curryp join_words/1\n  defp join_words(a) do\n    XString.join.(\" \").(a)\n  end\n\nend';
+var _user$project$Main$left = 'module FizzBuzz exposing (fizzbuzz)\n\n\nfizzbuzz : Int -> Int -> String\nfizzbuzz from to =\n  let\n    fizzBuzz n =\n        case (n % 3, n % 5) of\n            (0, 0) -> \"FizzBuzz\"\n            (0, _) -> \"Fizz\"\n            (_, 0) -> \"Buzz\"\n            _      -> toString n\n  in List.range from to |> map (fizzBuzz >> toString) |> joinWords\n\n\njoinWords : List String -> String\njoinWords a = String.join \" \" a';
+var _user$project$Main$states = {
 	ctor: '::',
-	_0: A2(
-		_user$project$Codepress$Range,
+	_0: A3(
+		_user$project$Codepress$State,
 		{
 			ctor: '::',
-			_0: A2(_user$project$Codepress$left, 0, 0),
+			_0: A2(
+				_user$project$Main_ops['>>'],
+				_user$project$Codepress$Left,
+				{ctor: '_Tuple2', _0: 0, _1: 0}),
 			_1: {
 				ctor: '::',
-				_0: A2(_user$project$Codepress$right, 1, 1),
+				_0: A2(
+					_user$project$Main_ops['>>'],
+					_user$project$Codepress$Right,
+					{ctor: '_Tuple2', _0: 1, _1: 1}),
+				_1: {ctor: '[]'}
+			}
+		},
+		{
+			ctor: '::',
+			_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+			_1: {
+				ctor: '::',
+				_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
 				_1: {ctor: '[]'}
 			}
 		},
 		''),
 	_1: {
 		ctor: '::',
-		_0: A2(
-			_user$project$Codepress$Range,
+		_0: A3(
+			_user$project$Codepress$State,
 			{
 				ctor: '::',
-				_0: A2(_user$project$Codepress$left, 0, 0),
+				_0: A2(
+					_user$project$Main_ops['>>'],
+					_user$project$Codepress$Left,
+					{ctor: '_Tuple2', _0: 0, _1: 0}),
 				_1: {
 					ctor: '::',
-					_0: A2(_user$project$Codepress$right, 1, 1),
+					_0: A2(
+						_user$project$Main_ops['>>'],
+						_user$project$Codepress$Right,
+						{ctor: '_Tuple2', _0: 1, _1: 1}),
+					_1: {ctor: '[]'}
+				}
+			},
+			{
+				ctor: '::',
+				_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+				_1: {
+					ctor: '::',
+					_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
 					_1: {ctor: '[]'}
 				}
 			},
 			'Fancy module transpilation'),
 		_1: {
 			ctor: '::',
-			_0: A2(
-				_user$project$Codepress$Range,
+			_0: A3(
+				_user$project$Codepress$State,
 				{
 					ctor: '::',
-					_0: A2(_user$project$Codepress$left, 3, 3),
+					_0: A2(
+						_user$project$Main_ops['>>'],
+						_user$project$Codepress$Left,
+						{ctor: '_Tuple2', _0: 3, _1: 3}),
 					_1: {
 						ctor: '::',
-						_0: A2(_user$project$Codepress$right, 4, 4),
+						_0: A2(
+							_user$project$Main_ops['>>'],
+							_user$project$Codepress$Right,
+							{ctor: '_Tuple2', _0: 4, _1: 4}),
+						_1: {ctor: '[]'}
+					}
+				},
+				{
+					ctor: '::',
+					_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+					_1: {
+						ctor: '::',
+						_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
 						_1: {ctor: '[]'}
 					}
 				},
 				'As you can see, there is awesome `Elchemy` -> `Elixir` type transpilation'),
 			_1: {
 				ctor: '::',
-				_0: A2(
-					_user$project$Codepress$Range,
+				_0: A3(
+					_user$project$Codepress$State,
 					{
 						ctor: '::',
-						_0: A2(_user$project$Codepress$left, 4, 4),
+						_0: A2(
+							_user$project$Main_ops['>>'],
+							_user$project$Codepress$Left,
+							{ctor: '_Tuple2', _0: 4, _1: 4}),
 						_1: {
 							ctor: '::',
-							_0: A2(_user$project$Codepress$right, 5, 6),
+							_0: A2(
+								_user$project$Main_ops['>>'],
+								_user$project$Codepress$Right,
+								{ctor: '_Tuple2', _0: 5, _1: 6}),
+							_1: {ctor: '[]'}
+						}
+					},
+					{
+						ctor: '::',
+						_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+						_1: {
+							ctor: '::',
+							_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
 							_1: {ctor: '[]'}
 						}
 					},
 					'Every outputed function is curried thanks to curry macro'),
 				_1: {
 					ctor: '::',
-					_0: A2(
-						_user$project$Codepress$Range,
+					_0: A3(
+						_user$project$Codepress$State,
 						{
 							ctor: '::',
-							_0: A2(_user$project$Codepress$left, 5, 12),
+							_0: A2(
+								_user$project$Main_ops['>>'],
+								_user$project$Codepress$Left,
+								{ctor: '_Tuple2', _0: 5, _1: 12}),
 							_1: {
 								ctor: '::',
-								_0: A2(_user$project$Codepress$right, 7, 20),
+								_0: A2(
+									_user$project$Main_ops['>>'],
+									_user$project$Codepress$Right,
+									{ctor: '_Tuple2', _0: 7, _1: 20}),
+								_1: {ctor: '[]'}
+							}
+						},
+						{
+							ctor: '::',
+							_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+							_1: {
+								ctor: '::',
+								_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
 								_1: {ctor: '[]'}
 							}
 						},
 						''),
 					_1: {
 						ctor: '::',
-						_0: A2(
-							_user$project$Codepress$Range,
+						_0: A3(
+							_user$project$Codepress$State,
 							{
 								ctor: '::',
-								_0: A2(_user$project$Codepress$left, 15, 15),
+								_0: A2(
+									_user$project$Main_ops['>>'],
+									_user$project$Codepress$Left,
+									{ctor: '_Tuple2', _0: 15, _1: 15}),
 								_1: {
 									ctor: '::',
-									_0: A2(_user$project$Codepress$right, 22, 22),
+									_0: A2(
+										_user$project$Main_ops['>>'],
+										_user$project$Codepress$Right,
+										{ctor: '_Tuple2', _0: 7, _1: 20}),
+									_1: {ctor: '[]'}
+								}
+							},
+							{
+								ctor: '::',
+								_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+								_1: {
+									ctor: '::',
+									_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
 									_1: {ctor: '[]'}
 								}
 							},
 							''),
 						_1: {
 							ctor: '::',
-							_0: A2(
-								_user$project$Codepress$Range,
+							_0: A3(
+								_user$project$Codepress$State,
 								{
 									ctor: '::',
-									_0: A2(_user$project$Codepress$left, 16, 16),
+									_0: A2(
+										_user$project$Main_ops['>>'],
+										_user$project$Codepress$Left,
+										{ctor: '_Tuple2', _0: 16, _1: 16}),
 									_1: {
 										ctor: '::',
-										_0: A2(_user$project$Codepress$right, 23, 26),
+										_0: A2(
+											_user$project$Main_ops['>>'],
+											_user$project$Codepress$Left,
+											{ctor: '_Tuple2', _0: 23, _1: 26}),
 										_1: {ctor: '[]'}
 									}
 								},
-								'### Do you know that:\n* I\'m markdown note\n* `with code`\n* [links](http://google.com)\n\n```elixir\ndef add(a, b), do: a + b\n# and code snippets\n```'),
+								{
+									ctor: '::',
+									_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+									_1: {
+										ctor: '::',
+										_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
+										_1: {ctor: '[]'}
+									}
+								},
+								'### Do you know that:\n* I\'m markdown note\n* `with code`\n* [links](http://google.com)\n\n```elixir\n# and code snippets\ndef add(a, b), do: a + b\n```\n```elm\nadd : Int -> Int -> Int\nadd =\n    (+)\n```'),
 							_1: {
 								ctor: '::',
-								_0: A2(
-									_user$project$Codepress$Range,
+								_0: A3(
+									_user$project$Codepress$State,
 									{
 										ctor: '::',
-										_0: A2(_user$project$Codepress$left, 3, 12),
+										_0: A2(
+											_user$project$Main_ops['>>'],
+											_user$project$Codepress$Left,
+											{ctor: '_Tuple2', _0: 3, _1: 12}),
 										_1: {ctor: '[]'}
+									},
+									{
+										ctor: '::',
+										_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+										_1: {
+											ctor: '::',
+											_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
+											_1: {ctor: '[]'}
+										}
 									},
 									'And you can create single pane highlights'),
 								_1: {
 									ctor: '::',
-									_0: A2(
-										_user$project$Codepress$Range,
+									_0: A3(
+										_user$project$Codepress$State,
 										{
 											ctor: '::',
-											_0: A2(_user$project$Codepress$left, 3, 12),
+											_0: A2(
+												_user$project$Main_ops['>>'],
+												_user$project$Codepress$Left,
+												{ctor: '_Tuple2', _0: 3, _1: 12}),
 											_1: {ctor: '[]'}
+										},
+										{
+											ctor: '::',
+											_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+											_1: {
+												ctor: '::',
+												_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
+												_1: {ctor: '[]'}
+											}
 										},
 										'left'),
 									_1: {
 										ctor: '::',
-										_0: A2(
-											_user$project$Codepress$Range,
+										_0: A3(
+											_user$project$Codepress$State,
 											{
 												ctor: '::',
-												_0: A2(_user$project$Codepress$right, 4, 20),
+												_0: A2(
+													_user$project$Main_ops['>>'],
+													_user$project$Codepress$Right,
+													{ctor: '_Tuple2', _0: 4, _1: 20}),
 												_1: {ctor: '[]'}
 											},
+											{
+												ctor: '::',
+												_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+												_1: {
+													ctor: '::',
+													_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
+													_1: {ctor: '[]'}
+												}
+											},
 											'or right'),
-										_1: {ctor: '[]'}
+										_1: {
+											ctor: '::',
+											_0: A3(
+												_user$project$Codepress$State,
+												{ctor: '[]'},
+												{
+													ctor: '::',
+													_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+													_1: {
+														ctor: '::',
+														_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
+														_1: {ctor: '[]'}
+													}
+												},
+												'Do you know we can switch panels content too?'),
+											_1: {
+												ctor: '::',
+												_0: A3(
+													_user$project$Codepress$State,
+													{ctor: '[]'},
+													{
+														ctor: '::',
+														_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$right),
+														_1: {
+															ctor: '::',
+															_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$left),
+															_1: {ctor: '[]'}
+														}
+													},
+													'Tada!!!'),
+												_1: {
+													ctor: '::',
+													_0: A3(
+														_user$project$Codepress$State,
+														{ctor: '[]'},
+														{
+															ctor: '::',
+															_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+															_1: {
+																ctor: '::',
+																_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
+																_1: {ctor: '[]'}
+															}
+														},
+														'Or you can even hide left/right code'),
+													_1: {
+														ctor: '::',
+														_0: A3(
+															_user$project$Codepress$State,
+															{ctor: '[]'},
+															{
+																ctor: '::',
+																_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Right, _user$project$Main$right),
+																_1: {ctor: '[]'}
+															},
+															'left'),
+														_1: {
+															ctor: '::',
+															_0: A3(
+																_user$project$Codepress$State,
+																{ctor: '[]'},
+																{
+																	ctor: '::',
+																	_0: A2(_user$project$Main_ops['>>'], _user$project$Codepress$Left, _user$project$Main$left),
+																	_1: {ctor: '[]'}
+																},
+																'or right'),
+															_1: {ctor: '[]'}
+														}
+													}
+												}
+											}
+										}
 									}
 								}
 							}
@@ -10714,7 +10945,7 @@ var _user$project$Main$ranges = {
 	}
 };
 var _user$project$Main$options = function (position) {
-	return {position: position, ranges: _user$project$Main$ranges, left: _user$project$Main$leftCode, right: _user$project$Main$rightCode};
+	return {position: position, states: _user$project$Main$states};
 };
 var _user$project$Main$view = function (model) {
 	return function (_p0) {
@@ -10735,7 +10966,7 @@ var _user$project$Main$update = F2(
 					case 40:
 						return (_elm_lang$core$Native_Utils.cmp(
 							model,
-							_elm_lang$core$List$length(_user$project$Main$ranges) - 1) < 0) ? (model + 1) : model;
+							_elm_lang$core$List$length(_user$project$Main$states) - 1) < 0) ? (model + 1) : model;
 					default:
 						return model;
 				}

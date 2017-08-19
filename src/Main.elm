@@ -2,38 +2,15 @@ module Main exposing (main)
 
 import Html exposing (Html)
 import Keyboard exposing (KeyCode)
-import Codepress exposing (Range, Options, left, right)
+import Codepress exposing (State, Options, Pane(Left, Right))
 
 
 type Msg
     = KeyDown KeyCode
 
 
-ranges : List Range
-ranges =
-    [ Range [ left 0 0, right 1 1 ] "" -- module
-    , Range [ left 0 0, right 1 1 ] "Fancy module transpilation" -- module
-    , Range [ left 3 3, right 4 4 ] "As you can see, there is awesome `Elchemy` -> `Elixir` type transpilation" -- fizzBuzz type signature
-    , Range [ left 4 4, right 5 6 ] "Every outputed function is curried thanks to curry macro" -- fizzBuzz head
-    , Range [ left 5 12, right 7 20 ] "" -- fizzBuzz body
-    , Range [ left 15 15, right 22 22 ] "" -- joinWords type signature
-    , Range [ left 16 16, right 23 26 ] """### Do you know that:
-* I'm markdown note
-* `with code`
-* [links](http://google.com)
-
-```elixir
-def add(a, b), do: a + b
-# and code snippets
-```""" -- joinWords body
-    , Range [ left 3 12 ] "And you can create single pane highlights" -- joinWords type signature
-    , Range [ left 3 12 ] "left" -- joinWords type signature
-    , Range [ right 4 20 ] "or right" -- joinWords type signature
-    ]
-
-
-leftCode : String
-leftCode =
+left : String
+left =
     """module FizzBuzz exposing (fizzbuzz)
 
 
@@ -53,8 +30,8 @@ joinWords : List String -> String
 joinWords a = String.join " " a"""
 
 
-rightCode : String
-rightCode =
+right : String
+right =
     """# Compiled using Elchemy v0.4.13
 defmodule FizzBuzz do
   use Elchemy
@@ -86,6 +63,121 @@ defmodule FizzBuzz do
 end"""
 
 
+(>>) : a -> b -> ( a, b )
+(>>) a b =
+    ( a, b )
+
+
+defaultCode =
+    []
+
+
+states : List State
+states =
+    [ State
+        [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
+        [ Left >> left, Right >> right ]
+        ""
+
+    --
+    , State
+        [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
+        [ Left >> left, Right >> right ]
+        "Fancy module transpilation"
+
+    --
+    , State
+        [ Left >> ( 3, 3 ), Right >> ( 4, 4 ) ]
+        [ Left >> left, Right >> right ]
+        "As you can see, there is awesome `Elchemy` -> `Elixir` type transpilation"
+
+    --
+    , State
+        [ Left >> ( 4, 4 ), Right >> ( 5, 6 ) ]
+        [ Left >> left, Right >> right ]
+        "Every outputed function is curried thanks to curry macro"
+
+    --
+    , State
+        [ Left >> ( 5, 12 ), Right >> ( 7, 20 ) ]
+        [ Left >> left, Right >> right ]
+        ""
+
+    --
+    , State
+        [ Left >> ( 15, 15 ), Right >> ( 7, 20 ) ]
+        [ Left >> left, Right >> right ]
+        ""
+
+    --
+    , State
+        [ Left >> ( 16, 16 ), Left >> ( 23, 26 ) ]
+        [ Left >> left, Right >> right ]
+        """### Do you know that:
+* I'm markdown note
+* `with code`
+* [links](http://google.com)
+
+```elixir
+# and code snippets
+def add(a, b), do: a + b
+```
+```elm
+add : Int -> Int -> Int
+add =
+    (+)
+```"""
+
+    --
+    , State
+        [ Left >> ( 3, 12 ) ]
+        [ Left >> left, Right >> right ]
+        "And you can create single pane highlights"
+
+    --
+    , State
+        [ Left >> ( 3, 12 ) ]
+        [ Left >> left, Right >> right ]
+        "left"
+
+    --
+    , State
+        [ Right >> ( 4, 20 ) ]
+        [ Left >> left, Right >> right ]
+        "or right"
+
+    --
+    , State
+        []
+        [ Left >> left, Right >> right ]
+        "Do you know we can switch panels content too?"
+
+    --
+    , State
+        []
+        [ Left >> right, Right >> left ]
+        "Tada!!!"
+
+    --
+    , State
+        []
+        [ Left >> left, Right >> right ]
+        "Or you can even hide left/right code"
+
+    --
+    , State
+        []
+        [ Right >> right ]
+        "left"
+
+    --
+    , State
+        []
+        [ Left >> left ]
+        "or right"
+    ]
+
+
 type alias Model =
     Int
 
@@ -97,7 +189,7 @@ init =
 
 options : Int -> Options
 options position =
-    { position = position, ranges = ranges, left = leftCode, right = rightCode }
+    { position = position, states = states }
 
 
 view : Model -> Html Msg
@@ -119,7 +211,7 @@ update msg model =
 
                 -- DOWN
                 40 ->
-                    if model < (List.length ranges - 1) then
+                    if model < (List.length states - 1) then
                         model + 1
                     else
                         model
