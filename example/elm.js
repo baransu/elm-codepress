@@ -10255,6 +10255,904 @@ var _elm_lang$keyboard$Keyboard$subMap = F2(
 	});
 _elm_lang$core$Native_Platform.effectManagers['Keyboard'] = {pkg: 'elm-lang/keyboard', init: _elm_lang$keyboard$Keyboard$init, onEffects: _elm_lang$keyboard$Keyboard$onEffects, onSelfMsg: _elm_lang$keyboard$Keyboard$onSelfMsg, tag: 'sub', subMap: _elm_lang$keyboard$Keyboard$subMap};
 
+var _elm_tools$parser_primitives$Native_ParserPrimitives = function() {
+
+
+// STRINGS
+
+function isSubString(smallString, offset, row, col, bigString)
+{
+	var smallLength = smallString.length;
+	var bigLength = bigString.length - offset;
+
+	if (bigLength < smallLength)
+	{
+		return tuple3(-1, row, col);
+	}
+
+	for (var i = 0; i < smallLength; i++)
+	{
+		var char = smallString[i];
+
+		if (char !== bigString[offset + i])
+		{
+			return tuple3(-1, row, col);
+		}
+
+		// if it is a two word character
+		if ((bigString.charCodeAt(offset) & 0xF800) === 0xD800)
+		{
+			i++
+			if (smallString[i] !== bigString[offset + i])
+			{
+				return tuple3(-1, row, col);
+			}
+			col++;
+			continue;
+		}
+
+		// if it is a newline
+		if (char === '\n')
+		{
+			row++;
+			col = 1;
+			continue;
+		}
+
+		// if it is a one word character
+		col++
+	}
+
+	return tuple3(offset + smallLength, row, col);
+}
+
+function tuple3(a, b, c)
+{
+	return { ctor: '_Tuple3', _0: a, _1: b, _2: c };
+}
+
+
+// CHARS
+
+var mkChar = _elm_lang$core$Native_Utils.chr;
+
+function isSubChar(predicate, offset, string)
+{
+	if (offset >= string.length)
+	{
+		return -1;
+	}
+
+	if ((string.charCodeAt(offset) & 0xF800) === 0xD800)
+	{
+		return predicate(mkChar(string.substr(offset, 2)))
+			? offset + 2
+			: -1;
+	}
+
+	var char = string[offset];
+
+	return predicate(mkChar(char))
+		? ((char === '\n') ? -2 : (offset + 1))
+		: -1;
+}
+
+
+// FIND STRING
+
+function findSubString(before, smallString, offset, row, col, bigString)
+{
+	var newOffset = bigString.indexOf(smallString, offset);
+
+	if (newOffset === -1)
+	{
+		return tuple3(-1, row, col);
+	}
+
+	var scanTarget = before ? newOffset	: newOffset + smallString.length;
+
+	while (offset < scanTarget)
+	{
+		var char = bigString[offset];
+
+		if (char === '\n')
+		{
+			offset++;
+			row++;
+			col = 1;
+			continue;
+		}
+
+		if ((bigString.charCodeAt(offset) & 0xF800) === 0xD800)
+		{
+			offset += 2;
+			col++;
+			continue;
+		}
+
+		offset++;
+		col++;
+	}
+
+	return tuple3(offset, row, col);
+}
+
+
+return {
+	isSubString: F5(isSubString),
+	isSubChar: F3(isSubChar),
+	findSubString: F6(findSubString)
+};
+
+}();
+
+var _elm_tools$parser_primitives$ParserPrimitives$findSubString = _elm_tools$parser_primitives$Native_ParserPrimitives.findSubString;
+var _elm_tools$parser_primitives$ParserPrimitives$isSubChar = _elm_tools$parser_primitives$Native_ParserPrimitives.isSubChar;
+var _elm_tools$parser_primitives$ParserPrimitives$isSubString = _elm_tools$parser_primitives$Native_ParserPrimitives.isSubString;
+
+var _elm_tools$parser$Parser_Internal$isPlusOrMinus = function ($char) {
+	return _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('+')) || _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('-'));
+};
+var _elm_tools$parser$Parser_Internal$isZero = function ($char) {
+	return _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('0'));
+};
+var _elm_tools$parser$Parser_Internal$isE = function ($char) {
+	return _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('e')) || _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('E'));
+};
+var _elm_tools$parser$Parser_Internal$isDot = function ($char) {
+	return _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('.'));
+};
+var _elm_tools$parser$Parser_Internal$isBadIntEnd = function ($char) {
+	return _elm_lang$core$Char$isDigit($char) || (_elm_lang$core$Char$isUpper($char) || (_elm_lang$core$Char$isLower($char) || _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('.'))));
+};
+var _elm_tools$parser$Parser_Internal$chomp = F3(
+	function (isGood, offset, source) {
+		chomp:
+		while (true) {
+			var newOffset = A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, isGood, offset, source);
+			if (_elm_lang$core$Native_Utils.cmp(newOffset, 0) < 0) {
+				return offset;
+			} else {
+				var _v0 = isGood,
+					_v1 = newOffset,
+					_v2 = source;
+				isGood = _v0;
+				offset = _v1;
+				source = _v2;
+				continue chomp;
+			}
+		}
+	});
+var _elm_tools$parser$Parser_Internal$chompDigits = F3(
+	function (isValidDigit, offset, source) {
+		var newOffset = A3(_elm_tools$parser$Parser_Internal$chomp, isValidDigit, offset, source);
+		return _elm_lang$core$Native_Utils.eq(newOffset, offset) ? _elm_lang$core$Result$Err(newOffset) : ((!_elm_lang$core$Native_Utils.eq(
+			A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser_Internal$isBadIntEnd, newOffset, source),
+			-1)) ? _elm_lang$core$Result$Err(newOffset) : _elm_lang$core$Result$Ok(newOffset));
+	});
+var _elm_tools$parser$Parser_Internal$chompExp = F2(
+	function (offset, source) {
+		var eOffset = A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser_Internal$isE, offset, source);
+		if (_elm_lang$core$Native_Utils.eq(eOffset, -1)) {
+			return _elm_lang$core$Result$Ok(offset);
+		} else {
+			var opOffset = A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser_Internal$isPlusOrMinus, eOffset, source);
+			var expOffset = _elm_lang$core$Native_Utils.eq(opOffset, -1) ? eOffset : opOffset;
+			return (!_elm_lang$core$Native_Utils.eq(
+				A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser_Internal$isZero, expOffset, source),
+				-1)) ? _elm_lang$core$Result$Err(expOffset) : (_elm_lang$core$Native_Utils.eq(
+				A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_lang$core$Char$isDigit, expOffset, source),
+				-1) ? _elm_lang$core$Result$Err(expOffset) : A3(_elm_tools$parser$Parser_Internal$chompDigits, _elm_lang$core$Char$isDigit, expOffset, source));
+		}
+	});
+var _elm_tools$parser$Parser_Internal$chompDotAndExp = F2(
+	function (offset, source) {
+		var dotOffset = A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser_Internal$isDot, offset, source);
+		return _elm_lang$core$Native_Utils.eq(dotOffset, -1) ? A2(_elm_tools$parser$Parser_Internal$chompExp, offset, source) : A2(
+			_elm_tools$parser$Parser_Internal$chompExp,
+			A3(_elm_tools$parser$Parser_Internal$chomp, _elm_lang$core$Char$isDigit, dotOffset, source),
+			source);
+	});
+var _elm_tools$parser$Parser_Internal$State = F6(
+	function (a, b, c, d, e, f) {
+		return {source: a, offset: b, indent: c, context: d, row: e, col: f};
+	});
+var _elm_tools$parser$Parser_Internal$Parser = function (a) {
+	return {ctor: 'Parser', _0: a};
+};
+var _elm_tools$parser$Parser_Internal$Bad = F2(
+	function (a, b) {
+		return {ctor: 'Bad', _0: a, _1: b};
+	});
+var _elm_tools$parser$Parser_Internal$Good = F2(
+	function (a, b) {
+		return {ctor: 'Good', _0: a, _1: b};
+	});
+
+var _elm_tools$parser$Parser$changeContext = F2(
+	function (newContext, _p0) {
+		var _p1 = _p0;
+		return {source: _p1.source, offset: _p1.offset, indent: _p1.indent, context: newContext, row: _p1.row, col: _p1.col};
+	});
+var _elm_tools$parser$Parser$sourceMap = F2(
+	function (func, _p2) {
+		var _p3 = _p2;
+		return _elm_tools$parser$Parser_Internal$Parser(
+			function (_p4) {
+				var _p5 = _p4;
+				var _p6 = _p3._0(_p5);
+				if (_p6.ctor === 'Bad') {
+					return A2(_elm_tools$parser$Parser_Internal$Bad, _p6._0, _p6._1);
+				} else {
+					var _p7 = _p6._1;
+					var subString = A3(_elm_lang$core$String$slice, _p5.offset, _p7.offset, _p5.source);
+					return A2(
+						_elm_tools$parser$Parser_Internal$Good,
+						A2(func, subString, _p6._0),
+						_p7);
+				}
+			});
+	});
+var _elm_tools$parser$Parser$source = function (parser) {
+	return A2(_elm_tools$parser$Parser$sourceMap, _elm_lang$core$Basics$always, parser);
+};
+var _elm_tools$parser$Parser$badFloatMsg = 'The `Parser.float` parser seems to have a bug.\nPlease report an SSCCE to <https://github.com/elm-tools/parser/issues>.';
+var _elm_tools$parser$Parser$floatHelp = F3(
+	function (offset, zeroOffset, source) {
+		if (_elm_lang$core$Native_Utils.cmp(zeroOffset, 0) > -1) {
+			return A2(_elm_tools$parser$Parser_Internal$chompDotAndExp, zeroOffset, source);
+		} else {
+			var dotOffset = A3(_elm_tools$parser$Parser_Internal$chomp, _elm_lang$core$Char$isDigit, offset, source);
+			var result = A2(_elm_tools$parser$Parser_Internal$chompDotAndExp, dotOffset, source);
+			var _p8 = result;
+			if (_p8.ctor === 'Err') {
+				return result;
+			} else {
+				var _p9 = _p8._0;
+				return _elm_lang$core$Native_Utils.eq(_p9, offset) ? _elm_lang$core$Result$Err(_p9) : result;
+			}
+		}
+	});
+var _elm_tools$parser$Parser$badIntMsg = 'The `Parser.int` parser seems to have a bug.\nPlease report an SSCCE to <https://github.com/elm-tools/parser/issues>.';
+var _elm_tools$parser$Parser$isX = function ($char) {
+	return _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('x'));
+};
+var _elm_tools$parser$Parser$isO = function ($char) {
+	return _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('o'));
+};
+var _elm_tools$parser$Parser$isZero = function ($char) {
+	return _elm_lang$core$Native_Utils.eq(
+		$char,
+		_elm_lang$core$Native_Utils.chr('0'));
+};
+var _elm_tools$parser$Parser$intHelp = F3(
+	function (offset, zeroOffset, source) {
+		return _elm_lang$core$Native_Utils.eq(zeroOffset, -1) ? A3(_elm_tools$parser$Parser_Internal$chompDigits, _elm_lang$core$Char$isDigit, offset, source) : ((!_elm_lang$core$Native_Utils.eq(
+			A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser$isX, zeroOffset, source),
+			-1)) ? A3(_elm_tools$parser$Parser_Internal$chompDigits, _elm_lang$core$Char$isHexDigit, offset + 2, source) : (_elm_lang$core$Native_Utils.eq(
+			A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser_Internal$isBadIntEnd, zeroOffset, source),
+			-1) ? _elm_lang$core$Result$Ok(zeroOffset) : _elm_lang$core$Result$Err(zeroOffset)));
+	});
+var _elm_tools$parser$Parser$token = F2(
+	function (makeProblem, str) {
+		return _elm_tools$parser$Parser_Internal$Parser(
+			function (_p10) {
+				var _p11 = _p10;
+				var _p13 = _p11.source;
+				var _p12 = A5(_elm_tools$parser_primitives$ParserPrimitives$isSubString, str, _p11.offset, _p11.row, _p11.col, _p13);
+				var newOffset = _p12._0;
+				var newRow = _p12._1;
+				var newCol = _p12._2;
+				return _elm_lang$core$Native_Utils.eq(newOffset, -1) ? A2(
+					_elm_tools$parser$Parser_Internal$Bad,
+					makeProblem(str),
+					_p11) : A2(
+					_elm_tools$parser$Parser_Internal$Good,
+					{ctor: '_Tuple0'},
+					{source: _p13, offset: newOffset, indent: _p11.indent, context: _p11.context, row: newRow, col: newCol});
+			});
+	});
+var _elm_tools$parser$Parser$delayedCommitMap = F3(
+	function (func, _p15, _p14) {
+		var _p16 = _p15;
+		var _p17 = _p14;
+		return _elm_tools$parser$Parser_Internal$Parser(
+			function (state1) {
+				var _p18 = _p16._0(state1);
+				if (_p18.ctor === 'Bad') {
+					return A2(_elm_tools$parser$Parser_Internal$Bad, _p18._0, state1);
+				} else {
+					var _p22 = _p18._1;
+					var _p19 = _p17._0(_p22);
+					if (_p19.ctor === 'Good') {
+						return A2(
+							_elm_tools$parser$Parser_Internal$Good,
+							A2(func, _p18._0, _p19._0),
+							_p19._1);
+					} else {
+						var _p21 = _p19._0;
+						var _p20 = _p19._1;
+						return (_elm_lang$core$Native_Utils.eq(_p22.row, _p20.row) && _elm_lang$core$Native_Utils.eq(_p22.col, _p20.col)) ? A2(_elm_tools$parser$Parser_Internal$Bad, _p21, state1) : A2(_elm_tools$parser$Parser_Internal$Bad, _p21, _p20);
+					}
+				}
+			});
+	});
+var _elm_tools$parser$Parser$delayedCommit = F2(
+	function (filler, realStuff) {
+		return A3(
+			_elm_tools$parser$Parser$delayedCommitMap,
+			F2(
+				function (_p23, v) {
+					return v;
+				}),
+			filler,
+			realStuff);
+	});
+var _elm_tools$parser$Parser$lazy = function (thunk) {
+	return _elm_tools$parser$Parser_Internal$Parser(
+		function (state) {
+			var _p24 = thunk(
+				{ctor: '_Tuple0'});
+			var parse = _p24._0;
+			return parse(state);
+		});
+};
+var _elm_tools$parser$Parser$andThen = F2(
+	function (callback, _p25) {
+		var _p26 = _p25;
+		return _elm_tools$parser$Parser_Internal$Parser(
+			function (state1) {
+				var _p27 = _p26._0(state1);
+				if (_p27.ctor === 'Bad') {
+					return A2(_elm_tools$parser$Parser_Internal$Bad, _p27._0, _p27._1);
+				} else {
+					var _p28 = callback(_p27._0);
+					var parseB = _p28._0;
+					return parseB(_p27._1);
+				}
+			});
+	});
+var _elm_tools$parser$Parser$apply = F2(
+	function (f, a) {
+		return f(a);
+	});
+var _elm_tools$parser$Parser$map2 = F3(
+	function (func, _p30, _p29) {
+		var _p31 = _p30;
+		var _p32 = _p29;
+		return _elm_tools$parser$Parser_Internal$Parser(
+			function (state1) {
+				var _p33 = _p31._0(state1);
+				if (_p33.ctor === 'Bad') {
+					return A2(_elm_tools$parser$Parser_Internal$Bad, _p33._0, _p33._1);
+				} else {
+					var _p34 = _p32._0(_p33._1);
+					if (_p34.ctor === 'Bad') {
+						return A2(_elm_tools$parser$Parser_Internal$Bad, _p34._0, _p34._1);
+					} else {
+						return A2(
+							_elm_tools$parser$Parser_Internal$Good,
+							A2(func, _p33._0, _p34._0),
+							_p34._1);
+					}
+				}
+			});
+	});
+var _elm_tools$parser$Parser_ops = _elm_tools$parser$Parser_ops || {};
+_elm_tools$parser$Parser_ops['|='] = F2(
+	function (parseFunc, parseArg) {
+		return A3(_elm_tools$parser$Parser$map2, _elm_tools$parser$Parser$apply, parseFunc, parseArg);
+	});
+var _elm_tools$parser$Parser_ops = _elm_tools$parser$Parser_ops || {};
+_elm_tools$parser$Parser_ops['|.'] = F2(
+	function (keepParser, ignoreParser) {
+		return A3(_elm_tools$parser$Parser$map2, _elm_lang$core$Basics$always, keepParser, ignoreParser);
+	});
+var _elm_tools$parser$Parser$map = F2(
+	function (func, _p35) {
+		var _p36 = _p35;
+		return _elm_tools$parser$Parser_Internal$Parser(
+			function (state1) {
+				var _p37 = _p36._0(state1);
+				if (_p37.ctor === 'Good') {
+					return A2(
+						_elm_tools$parser$Parser_Internal$Good,
+						func(_p37._0),
+						_p37._1);
+				} else {
+					return A2(_elm_tools$parser$Parser_Internal$Bad, _p37._0, _p37._1);
+				}
+			});
+	});
+var _elm_tools$parser$Parser$succeed = function (a) {
+	return _elm_tools$parser$Parser_Internal$Parser(
+		function (state) {
+			return A2(_elm_tools$parser$Parser_Internal$Good, a, state);
+		});
+};
+var _elm_tools$parser$Parser$run = F2(
+	function (_p38, source) {
+		var _p39 = _p38;
+		var initialState = {
+			source: source,
+			offset: 0,
+			indent: 1,
+			context: {ctor: '[]'},
+			row: 1,
+			col: 1
+		};
+		var _p40 = _p39._0(initialState);
+		if (_p40.ctor === 'Good') {
+			return _elm_lang$core$Result$Ok(_p40._0);
+		} else {
+			return _elm_lang$core$Result$Err(
+				{row: _p40._1.row, col: _p40._1.col, source: source, problem: _p40._0, context: _p40._1.context});
+		}
+	});
+var _elm_tools$parser$Parser$Error = F5(
+	function (a, b, c, d, e) {
+		return {row: a, col: b, source: c, problem: d, context: e};
+	});
+var _elm_tools$parser$Parser$Context = F3(
+	function (a, b, c) {
+		return {row: a, col: b, description: c};
+	});
+var _elm_tools$parser$Parser$inContext = F2(
+	function (ctx, _p41) {
+		var _p42 = _p41;
+		return _elm_tools$parser$Parser_Internal$Parser(
+			function (_p43) {
+				var _p44 = _p43;
+				var _p46 = _p44.context;
+				var state1 = A2(
+					_elm_tools$parser$Parser$changeContext,
+					{
+						ctor: '::',
+						_0: A3(_elm_tools$parser$Parser$Context, _p44.row, _p44.col, ctx),
+						_1: _p46
+					},
+					_p44);
+				var _p45 = _p42._0(state1);
+				if (_p45.ctor === 'Good') {
+					return A2(
+						_elm_tools$parser$Parser_Internal$Good,
+						_p45._0,
+						A2(_elm_tools$parser$Parser$changeContext, _p46, _p45._1));
+				} else {
+					return _p45;
+				}
+			});
+	});
+var _elm_tools$parser$Parser$Fail = function (a) {
+	return {ctor: 'Fail', _0: a};
+};
+var _elm_tools$parser$Parser$fail = function (message) {
+	return _elm_tools$parser$Parser_Internal$Parser(
+		function (state) {
+			return A2(
+				_elm_tools$parser$Parser_Internal$Bad,
+				_elm_tools$parser$Parser$Fail(message),
+				state);
+		});
+};
+var _elm_tools$parser$Parser$ExpectingClosing = function (a) {
+	return {ctor: 'ExpectingClosing', _0: a};
+};
+var _elm_tools$parser$Parser$ignoreUntil = function (str) {
+	return _elm_tools$parser$Parser_Internal$Parser(
+		function (_p47) {
+			var _p48 = _p47;
+			var _p50 = _p48.source;
+			var _p49 = A6(_elm_tools$parser_primitives$ParserPrimitives$findSubString, false, str, _p48.offset, _p48.row, _p48.col, _p50);
+			var newOffset = _p49._0;
+			var newRow = _p49._1;
+			var newCol = _p49._2;
+			return _elm_lang$core$Native_Utils.eq(newOffset, -1) ? A2(
+				_elm_tools$parser$Parser_Internal$Bad,
+				_elm_tools$parser$Parser$ExpectingClosing(str),
+				_p48) : A2(
+				_elm_tools$parser$Parser_Internal$Good,
+				{ctor: '_Tuple0'},
+				{source: _p50, offset: newOffset, indent: _p48.indent, context: _p48.context, row: newRow, col: newCol});
+		});
+};
+var _elm_tools$parser$Parser$ExpectingVariable = {ctor: 'ExpectingVariable'};
+var _elm_tools$parser$Parser$ExpectingKeyword = function (a) {
+	return {ctor: 'ExpectingKeyword', _0: a};
+};
+var _elm_tools$parser$Parser$keyword = function (str) {
+	return A2(_elm_tools$parser$Parser$token, _elm_tools$parser$Parser$ExpectingKeyword, str);
+};
+var _elm_tools$parser$Parser$ExpectingSymbol = function (a) {
+	return {ctor: 'ExpectingSymbol', _0: a};
+};
+var _elm_tools$parser$Parser$symbol = function (str) {
+	return A2(_elm_tools$parser$Parser$token, _elm_tools$parser$Parser$ExpectingSymbol, str);
+};
+var _elm_tools$parser$Parser$ExpectingEnd = {ctor: 'ExpectingEnd'};
+var _elm_tools$parser$Parser$end = _elm_tools$parser$Parser_Internal$Parser(
+	function (state) {
+		return _elm_lang$core$Native_Utils.eq(
+			_elm_lang$core$String$length(state.source),
+			state.offset) ? A2(
+			_elm_tools$parser$Parser_Internal$Good,
+			{ctor: '_Tuple0'},
+			state) : A2(_elm_tools$parser$Parser_Internal$Bad, _elm_tools$parser$Parser$ExpectingEnd, state);
+	});
+var _elm_tools$parser$Parser$BadRepeat = {ctor: 'BadRepeat'};
+var _elm_tools$parser$Parser$repeatExactly = F4(
+	function (n, parse, revList, state1) {
+		repeatExactly:
+		while (true) {
+			if (_elm_lang$core$Native_Utils.cmp(n, 0) < 1) {
+				return A2(
+					_elm_tools$parser$Parser_Internal$Good,
+					_elm_lang$core$List$reverse(revList),
+					state1);
+			} else {
+				var _p51 = parse(state1);
+				if (_p51.ctor === 'Good') {
+					var _p52 = _p51._1;
+					if (_elm_lang$core$Native_Utils.eq(state1.row, _p52.row) && _elm_lang$core$Native_Utils.eq(state1.col, _p52.col)) {
+						return A2(_elm_tools$parser$Parser_Internal$Bad, _elm_tools$parser$Parser$BadRepeat, _p52);
+					} else {
+						var _v25 = n - 1,
+							_v26 = parse,
+							_v27 = {ctor: '::', _0: _p51._0, _1: revList},
+							_v28 = _p52;
+						n = _v25;
+						parse = _v26;
+						revList = _v27;
+						state1 = _v28;
+						continue repeatExactly;
+					}
+				} else {
+					return A2(_elm_tools$parser$Parser_Internal$Bad, _p51._0, _p51._1);
+				}
+			}
+		}
+	});
+var _elm_tools$parser$Parser$repeatAtLeast = F4(
+	function (n, parse, revList, state1) {
+		repeatAtLeast:
+		while (true) {
+			var _p53 = parse(state1);
+			if (_p53.ctor === 'Good') {
+				var _p54 = _p53._1;
+				if (_elm_lang$core$Native_Utils.eq(state1.row, _p54.row) && _elm_lang$core$Native_Utils.eq(state1.col, _p54.col)) {
+					return A2(_elm_tools$parser$Parser_Internal$Bad, _elm_tools$parser$Parser$BadRepeat, _p54);
+				} else {
+					var _v30 = n - 1,
+						_v31 = parse,
+						_v32 = {ctor: '::', _0: _p53._0, _1: revList},
+						_v33 = _p54;
+					n = _v30;
+					parse = _v31;
+					revList = _v32;
+					state1 = _v33;
+					continue repeatAtLeast;
+				}
+			} else {
+				var _p55 = _p53._1;
+				return (_elm_lang$core$Native_Utils.eq(state1.row, _p55.row) && (_elm_lang$core$Native_Utils.eq(state1.col, _p55.col) && (_elm_lang$core$Native_Utils.cmp(n, 0) < 1))) ? A2(
+					_elm_tools$parser$Parser_Internal$Good,
+					_elm_lang$core$List$reverse(revList),
+					state1) : A2(_elm_tools$parser$Parser_Internal$Bad, _p53._0, _p55);
+			}
+		}
+	});
+var _elm_tools$parser$Parser$repeat = F2(
+	function (count, _p56) {
+		var _p57 = _p56;
+		var _p59 = _p57._0;
+		var _p58 = count;
+		if (_p58.ctor === 'Exactly') {
+			return _elm_tools$parser$Parser_Internal$Parser(
+				function (state) {
+					return A4(
+						_elm_tools$parser$Parser$repeatExactly,
+						_p58._0,
+						_p59,
+						{ctor: '[]'},
+						state);
+				});
+		} else {
+			return _elm_tools$parser$Parser_Internal$Parser(
+				function (state) {
+					return A4(
+						_elm_tools$parser$Parser$repeatAtLeast,
+						_p58._0,
+						_p59,
+						{ctor: '[]'},
+						state);
+				});
+		}
+	});
+var _elm_tools$parser$Parser$ignoreExactly = F8(
+	function (n, predicate, source, offset, indent, context, row, col) {
+		ignoreExactly:
+		while (true) {
+			if (_elm_lang$core$Native_Utils.cmp(n, 0) < 1) {
+				return A2(
+					_elm_tools$parser$Parser_Internal$Good,
+					{ctor: '_Tuple0'},
+					{source: source, offset: offset, indent: indent, context: context, row: row, col: col});
+			} else {
+				var newOffset = A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, predicate, offset, source);
+				if (_elm_lang$core$Native_Utils.eq(newOffset, -1)) {
+					return A2(
+						_elm_tools$parser$Parser_Internal$Bad,
+						_elm_tools$parser$Parser$BadRepeat,
+						{source: source, offset: offset, indent: indent, context: context, row: row, col: col});
+				} else {
+					if (_elm_lang$core$Native_Utils.eq(newOffset, -2)) {
+						var _v36 = n - 1,
+							_v37 = predicate,
+							_v38 = source,
+							_v39 = offset + 1,
+							_v40 = indent,
+							_v41 = context,
+							_v42 = row + 1,
+							_v43 = 1;
+						n = _v36;
+						predicate = _v37;
+						source = _v38;
+						offset = _v39;
+						indent = _v40;
+						context = _v41;
+						row = _v42;
+						col = _v43;
+						continue ignoreExactly;
+					} else {
+						var _v44 = n - 1,
+							_v45 = predicate,
+							_v46 = source,
+							_v47 = newOffset,
+							_v48 = indent,
+							_v49 = context,
+							_v50 = row,
+							_v51 = col + 1;
+						n = _v44;
+						predicate = _v45;
+						source = _v46;
+						offset = _v47;
+						indent = _v48;
+						context = _v49;
+						row = _v50;
+						col = _v51;
+						continue ignoreExactly;
+					}
+				}
+			}
+		}
+	});
+var _elm_tools$parser$Parser$ignoreAtLeast = F8(
+	function (n, predicate, source, offset, indent, context, row, col) {
+		ignoreAtLeast:
+		while (true) {
+			var newOffset = A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, predicate, offset, source);
+			if (_elm_lang$core$Native_Utils.eq(newOffset, -1)) {
+				var state = {source: source, offset: offset, indent: indent, context: context, row: row, col: col};
+				return (_elm_lang$core$Native_Utils.cmp(n, 0) < 1) ? A2(
+					_elm_tools$parser$Parser_Internal$Good,
+					{ctor: '_Tuple0'},
+					state) : A2(_elm_tools$parser$Parser_Internal$Bad, _elm_tools$parser$Parser$BadRepeat, state);
+			} else {
+				if (_elm_lang$core$Native_Utils.eq(newOffset, -2)) {
+					var _v52 = n - 1,
+						_v53 = predicate,
+						_v54 = source,
+						_v55 = offset + 1,
+						_v56 = indent,
+						_v57 = context,
+						_v58 = row + 1,
+						_v59 = 1;
+					n = _v52;
+					predicate = _v53;
+					source = _v54;
+					offset = _v55;
+					indent = _v56;
+					context = _v57;
+					row = _v58;
+					col = _v59;
+					continue ignoreAtLeast;
+				} else {
+					var _v60 = n - 1,
+						_v61 = predicate,
+						_v62 = source,
+						_v63 = newOffset,
+						_v64 = indent,
+						_v65 = context,
+						_v66 = row,
+						_v67 = col + 1;
+					n = _v60;
+					predicate = _v61;
+					source = _v62;
+					offset = _v63;
+					indent = _v64;
+					context = _v65;
+					row = _v66;
+					col = _v67;
+					continue ignoreAtLeast;
+				}
+			}
+		}
+	});
+var _elm_tools$parser$Parser$ignore = F2(
+	function (count, predicate) {
+		var _p60 = count;
+		if (_p60.ctor === 'Exactly') {
+			return _elm_tools$parser$Parser_Internal$Parser(
+				function (_p61) {
+					var _p62 = _p61;
+					return A8(_elm_tools$parser$Parser$ignoreExactly, _p60._0, predicate, _p62.source, _p62.offset, _p62.indent, _p62.context, _p62.row, _p62.col);
+				});
+		} else {
+			return _elm_tools$parser$Parser_Internal$Parser(
+				function (_p63) {
+					var _p64 = _p63;
+					return A8(_elm_tools$parser$Parser$ignoreAtLeast, _p60._0, predicate, _p64.source, _p64.offset, _p64.indent, _p64.context, _p64.row, _p64.col);
+				});
+		}
+	});
+var _elm_tools$parser$Parser$keep = F2(
+	function (count, predicate) {
+		return _elm_tools$parser$Parser$source(
+			A2(_elm_tools$parser$Parser$ignore, count, predicate));
+	});
+var _elm_tools$parser$Parser$BadFloat = {ctor: 'BadFloat'};
+var _elm_tools$parser$Parser$float = _elm_tools$parser$Parser_Internal$Parser(
+	function (_p65) {
+		var _p66 = _p65;
+		var _p77 = _p66.source;
+		var _p76 = _p66.row;
+		var _p75 = _p66.offset;
+		var _p74 = _p66.indent;
+		var _p73 = _p66.context;
+		var _p72 = _p66.col;
+		var _p67 = A3(
+			_elm_tools$parser$Parser$floatHelp,
+			_p75,
+			A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser$isZero, _p75, _p77),
+			_p77);
+		if (_p67.ctor === 'Err') {
+			var _p68 = _p67._0;
+			return A2(
+				_elm_tools$parser$Parser_Internal$Bad,
+				_elm_tools$parser$Parser$BadFloat,
+				{source: _p77, offset: _p68, indent: _p74, context: _p73, row: _p76, col: _p72 + (_p68 - _p75)});
+		} else {
+			var _p71 = _p67._0;
+			var _p69 = _elm_lang$core$String$toFloat(
+				A3(_elm_lang$core$String$slice, _p75, _p71, _p77));
+			if (_p69.ctor === 'Err') {
+				return _elm_lang$core$Native_Utils.crashCase(
+					'Parser',
+					{
+						start: {line: 733, column: 9},
+						end: {line: 745, column: 16}
+					},
+					_p69)(_elm_tools$parser$Parser$badFloatMsg);
+			} else {
+				return A2(
+					_elm_tools$parser$Parser_Internal$Good,
+					_p69._0,
+					{source: _p77, offset: _p71, indent: _p74, context: _p73, row: _p76, col: _p72 + (_p71 - _p75)});
+			}
+		}
+	});
+var _elm_tools$parser$Parser$BadInt = {ctor: 'BadInt'};
+var _elm_tools$parser$Parser$int = _elm_tools$parser$Parser_Internal$Parser(
+	function (_p78) {
+		var _p79 = _p78;
+		var _p90 = _p79.source;
+		var _p89 = _p79.row;
+		var _p88 = _p79.offset;
+		var _p87 = _p79.indent;
+		var _p86 = _p79.context;
+		var _p85 = _p79.col;
+		var _p80 = A3(
+			_elm_tools$parser$Parser$intHelp,
+			_p88,
+			A3(_elm_tools$parser_primitives$ParserPrimitives$isSubChar, _elm_tools$parser$Parser$isZero, _p88, _p90),
+			_p90);
+		if (_p80.ctor === 'Err') {
+			var _p81 = _p80._0;
+			return A2(
+				_elm_tools$parser$Parser_Internal$Bad,
+				_elm_tools$parser$Parser$BadInt,
+				{source: _p90, offset: _p81, indent: _p87, context: _p86, row: _p89, col: _p85 + (_p81 - _p88)});
+		} else {
+			var _p84 = _p80._0;
+			var _p82 = _elm_lang$core$String$toInt(
+				A3(_elm_lang$core$String$slice, _p88, _p84, _p90));
+			if (_p82.ctor === 'Err') {
+				return _elm_lang$core$Native_Utils.crashCase(
+					'Parser',
+					{
+						start: {line: 638, column: 9},
+						end: {line: 650, column: 16}
+					},
+					_p82)(_elm_tools$parser$Parser$badIntMsg);
+			} else {
+				return A2(
+					_elm_tools$parser$Parser_Internal$Good,
+					_p82._0,
+					{source: _p90, offset: _p84, indent: _p87, context: _p86, row: _p89, col: _p85 + (_p84 - _p88)});
+			}
+		}
+	});
+var _elm_tools$parser$Parser$BadOneOf = function (a) {
+	return {ctor: 'BadOneOf', _0: a};
+};
+var _elm_tools$parser$Parser$oneOfHelp = F3(
+	function (state, problems, parsers) {
+		oneOfHelp:
+		while (true) {
+			var _p91 = parsers;
+			if (_p91.ctor === '[]') {
+				return A2(
+					_elm_tools$parser$Parser_Internal$Bad,
+					_elm_tools$parser$Parser$BadOneOf(
+						_elm_lang$core$List$reverse(problems)),
+					state);
+			} else {
+				var _p92 = _p91._0._0(state);
+				if (_p92.ctor === 'Good') {
+					return _p92;
+				} else {
+					if (_elm_lang$core$Native_Utils.eq(state.row, _p92._1.row) && _elm_lang$core$Native_Utils.eq(state.col, _p92._1.col)) {
+						var _v79 = state,
+							_v80 = {ctor: '::', _0: _p92._0, _1: problems},
+							_v81 = _p91._1;
+						state = _v79;
+						problems = _v80;
+						parsers = _v81;
+						continue oneOfHelp;
+					} else {
+						return _p92;
+					}
+				}
+			}
+		}
+	});
+var _elm_tools$parser$Parser$oneOf = function (parsers) {
+	return _elm_tools$parser$Parser_Internal$Parser(
+		function (state) {
+			return A3(
+				_elm_tools$parser$Parser$oneOfHelp,
+				state,
+				{ctor: '[]'},
+				parsers);
+		});
+};
+var _elm_tools$parser$Parser$Exactly = function (a) {
+	return {ctor: 'Exactly', _0: a};
+};
+var _elm_tools$parser$Parser$AtLeast = function (a) {
+	return {ctor: 'AtLeast', _0: a};
+};
+var _elm_tools$parser$Parser$zeroOrMore = _elm_tools$parser$Parser$AtLeast(0);
+var _elm_tools$parser$Parser$oneOrMore = _elm_tools$parser$Parser$AtLeast(1);
+
 var _evancz$elm_markdown$Native_Markdown = function() {
 
 
@@ -10395,19 +11293,3056 @@ var _evancz$elm_markdown$Markdown$Options = F4(
 		return {githubFlavored: a, defaultHighlighting: b, sanitize: c, smartypants: d};
 	});
 
-var _user$project$Codepress$toText = function (_p0) {
-	return _elm_lang$html$Html$text(
-		_elm_lang$core$Basics$toString(_p0));
-};
-var _user$project$Codepress$findCode = F2(
-	function (pane, state) {
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$highlightLinesHelp = F5(
+	function (maybeHighlight, start, end, index, line) {
+		return ((_elm_lang$core$Native_Utils.cmp(index, start) > -1) && (_elm_lang$core$Native_Utils.cmp(index, end) < 0)) ? _elm_lang$core$Native_Utils.update(
+			line,
+			{highlight: maybeHighlight}) : line;
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$highlightLines = F4(
+	function (maybeHighlight, start, end, lines) {
+		var length = _elm_lang$core$List$length(lines);
+		var start_ = (_elm_lang$core$Native_Utils.cmp(start, 0) < 0) ? (length + start) : start;
+		var end_ = (_elm_lang$core$Native_Utils.cmp(end, 0) < 0) ? (length + end) : end;
 		return A2(
+			_elm_lang$core$List$indexedMap,
+			A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$highlightLinesHelp, maybeHighlight, start_, end_),
+			lines);
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Line = F2(
+	function (a, b) {
+		return {fragments: a, highlight: b};
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Fragment = F4(
+	function (a, b, c, d) {
+		return {text: a, color: b, isEmphasis: c, isStrong: d};
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Delete = {ctor: 'Delete'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Add = {ctor: 'Add'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Normal = {ctor: 'Normal'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color7 = {ctor: 'Color7'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color6 = {ctor: 'Color6'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color5 = {ctor: 'Color5'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color4 = {ctor: 'Color4'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color3 = {ctor: 'Color3'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color2 = {ctor: 'Color2'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color1 = {ctor: 'Color1'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default = {ctor: 'Default'};
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$colorToString = function (color) {
+	return A2(
+		F2(
+			function (x, y) {
+				return A2(_elm_lang$core$Basics_ops['++'], x, y);
+			}),
+		'elmsh',
+		function () {
+			var _p0 = color;
+			switch (_p0.ctor) {
+				case 'Default':
+					return '0';
+				case 'Color1':
+					return '1';
+				case 'Color2':
+					return '2';
+				case 'Color3':
+					return '3';
+				case 'Color4':
+					return '4';
+				case 'Color5':
+					return '5';
+				case 'Color6':
+					return '6';
+				default:
+					return '7';
+			}
+		}());
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$elementView = function (_p1) {
+	var _p2 = _p1;
+	var _p6 = _p2.text;
+	var _p5 = _p2.isStrong;
+	var _p4 = _p2.isEmphasis;
+	var _p3 = _p2.color;
+	return (_elm_lang$core$Native_Utils.eq(_p3, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default) && ((!_p4) && (!_p5))) ? _elm_lang$html$Html$text(_p6) : A2(
+		_elm_lang$html$Html$span,
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$classList(
+				{
+					ctor: '::',
+					_0: {
+						ctor: '_Tuple2',
+						_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$colorToString(_p3),
+						_1: !_elm_lang$core$Native_Utils.eq(_p3, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default)
+					},
+					_1: {
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'elmsh-emphasis', _1: _p4},
+						_1: {
+							ctor: '::',
+							_0: {ctor: '_Tuple2', _0: 'elmsh-strong', _1: _p5},
+							_1: {ctor: '[]'}
+						}
+					}
+				}),
+			_1: {ctor: '[]'}
+		},
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html$text(_p6),
+			_1: {ctor: '[]'}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$toInlineHtml = function (lines) {
+	return A2(
+		_elm_lang$html$Html$code,
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html_Attributes$class('elmsh'),
+			_1: {ctor: '[]'}
+		},
+		_elm_lang$core$List$concat(
+			A2(
+				_elm_lang$core$List$map,
+				function (_p7) {
+					var _p8 = _p7;
+					var _p10 = _p8.highlight;
+					var _p9 = _p8.fragments;
+					return _elm_lang$core$Native_Utils.eq(_p10, _elm_lang$core$Maybe$Nothing) ? A2(_elm_lang$core$List$map, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$elementView, _p9) : {
+						ctor: '::',
+						_0: A2(
+							_elm_lang$html$Html$span,
+							{
+								ctor: '::',
+								_0: _elm_lang$html$Html_Attributes$classList(
+									{
+										ctor: '::',
+										_0: {
+											ctor: '_Tuple2',
+											_0: 'elmsh-hl',
+											_1: _elm_lang$core$Native_Utils.eq(
+												_p10,
+												_elm_lang$core$Maybe$Just(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Normal))
+										},
+										_1: {
+											ctor: '::',
+											_0: {
+												ctor: '_Tuple2',
+												_0: 'elmsh-add',
+												_1: _elm_lang$core$Native_Utils.eq(
+													_p10,
+													_elm_lang$core$Maybe$Just(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Add))
+											},
+											_1: {
+												ctor: '::',
+												_0: {
+													ctor: '_Tuple2',
+													_0: 'elmsh-del',
+													_1: _elm_lang$core$Native_Utils.eq(
+														_p10,
+														_elm_lang$core$Maybe$Just(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Delete))
+												},
+												_1: {ctor: '[]'}
+											}
+										}
+									}),
+								_1: {ctor: '[]'}
+							},
+							A2(_elm_lang$core$List$map, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$elementView, _p9)),
+						_1: {ctor: '[]'}
+					};
+				},
+				lines)));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$lineView = F3(
+	function (start, index, _p11) {
+		var _p12 = _p11;
+		var _p13 = _p12.highlight;
+		return A2(
+			_elm_lang$html$Html$div,
+			{
+				ctor: '::',
+				_0: _elm_lang$html$Html_Attributes$classList(
+					{
+						ctor: '::',
+						_0: {ctor: '_Tuple2', _0: 'elmsh-line', _1: true},
+						_1: {
+							ctor: '::',
+							_0: {
+								ctor: '_Tuple2',
+								_0: 'elmsh-hl',
+								_1: _elm_lang$core$Native_Utils.eq(
+									_p13,
+									_elm_lang$core$Maybe$Just(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Normal))
+							},
+							_1: {
+								ctor: '::',
+								_0: {
+									ctor: '_Tuple2',
+									_0: 'elmsh-add',
+									_1: _elm_lang$core$Native_Utils.eq(
+										_p13,
+										_elm_lang$core$Maybe$Just(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Add))
+								},
+								_1: {
+									ctor: '::',
+									_0: {
+										ctor: '_Tuple2',
+										_0: 'elmsh-del',
+										_1: _elm_lang$core$Native_Utils.eq(
+											_p13,
+											_elm_lang$core$Maybe$Just(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Delete))
+									},
+									_1: {ctor: '[]'}
+								}
+							}
+						}
+					}),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_lang$html$Html_Attributes$attribute,
+						'data-elmsh-lc',
+						_elm_lang$core$Basics$toString(start + index)),
+					_1: {ctor: '[]'}
+				}
+			},
+			A2(_elm_lang$core$List$map, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$elementView, _p12.fragments));
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$toBlockHtml = F2(
+	function (maybeStart, lines) {
+		var _p14 = maybeStart;
+		if (_p14.ctor === 'Nothing') {
+			return A2(
+				_elm_lang$html$Html$pre,
+				{
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('elmsh'),
+					_1: {ctor: '[]'}
+				},
+				{
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$toInlineHtml(lines),
+					_1: {ctor: '[]'}
+				});
+		} else {
+			return A2(
+				_elm_lang$html$Html$pre,
+				{
+					ctor: '::',
+					_0: _elm_lang$html$Html_Attributes$class('elmsh'),
+					_1: {ctor: '[]'}
+				},
+				_elm_lang$core$List$singleton(
+					A2(
+						_elm_lang$html$Html$code,
+						{ctor: '[]'},
+						A2(
+							_elm_lang$core$List$indexedMap,
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$lineView(_p14._0),
+							lines))));
+		}
+	});
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$strongEmphasis = F2(
+	function (color, text) {
+		return {text: text, color: color, isEmphasis: true, isStrong: true};
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$strong = F2(
+	function (color, text) {
+		return {text: text, color: color, isEmphasis: false, isStrong: true};
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$emphasis = F2(
+	function (color, text) {
+		return {text: text, color: color, isEmphasis: true, isStrong: false};
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal = F2(
+	function (color, text) {
+		return {text: text, color: color, isEmphasis: false, isStrong: false};
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$newLine = function (fragments) {
+	return {fragments: fragments, highlight: _elm_lang$core$Maybe$Nothing};
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$toLinesHelp = F4(
+	function (lineBreak, toFragment, _p1, _p0) {
+		var _p2 = _p1;
+		var _p10 = _p2._1;
+		var _p9 = _p2._0;
+		var _p3 = _p0;
+		var _p8 = _p3._2;
+		var _p7 = _p3._0;
+		var _p6 = _p3._1;
+		if (_elm_lang$core$Native_Utils.eq(_p9, lineBreak)) {
+			return {
+				ctor: '_Tuple3',
+				_0: {
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$newLine(_p6),
+					_1: _p7
+				},
+				_1: {
+					ctor: '::',
+					_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p10),
+					_1: {ctor: '[]'}
+				},
+				_2: _elm_lang$core$Maybe$Nothing
+			};
+		} else {
+			if (_elm_lang$core$Native_Utils.eq(
+				_elm_lang$core$Maybe$Just(_p9),
+				_p8)) {
+				var _p4 = _p6;
+				if (_p4.ctor === '::') {
+					var _p5 = _p4._0;
+					return {
+						ctor: '_Tuple3',
+						_0: _p7,
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$core$Native_Utils.update(
+								_p5,
+								{
+									text: A2(_elm_lang$core$Basics_ops['++'], _p10, _p5.text)
+								}),
+							_1: _p4._1
+						},
+						_2: _p8
+					};
+				} else {
+					return {
+						ctor: '_Tuple3',
+						_0: _p7,
+						_1: {
+							ctor: '::',
+							_0: toFragment(
+								{ctor: '_Tuple2', _0: _p9, _1: _p10}),
+							_1: _p6
+						},
+						_2: _p8
+					};
+				}
+			} else {
+				return {
+					ctor: '_Tuple3',
+					_0: _p7,
+					_1: {
+						ctor: '::',
+						_0: toFragment(
+							{ctor: '_Tuple2', _0: _p9, _1: _p10}),
+						_1: _p6
+					},
+					_2: _elm_lang$core$Maybe$Just(_p9)
+				};
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$toLines = F3(
+	function (lineBreak, toFragment, revSyntaxes) {
+		return function (_p11) {
+			var _p12 = _p11;
+			return {
+				ctor: '::',
+				_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$newLine(_p12._1),
+				_1: _p12._0
+			};
+		}(
+			A3(
+				_elm_lang$core$List$foldl,
+				A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$toLinesHelp, lineBreak, toFragment),
+				{
+					ctor: '_Tuple3',
+					_0: {ctor: '[]'},
+					_1: {ctor: '[]'},
+					_2: _elm_lang$core$Maybe$Nothing
+				},
+				revSyntaxes));
+	});
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$escapableSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: _elm_lang$core$Native_Utils.chr('\''),
+		_1: {
+			ctor: '::',
+			_0: _elm_lang$core$Native_Utils.chr('\"'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$core$Native_Utils.chr('\\'),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$core$Native_Utils.chr('n'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$core$Native_Utils.chr('r'),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$core$Native_Utils.chr('t'),
+							_1: {
+								ctor: '::',
+								_0: _elm_lang$core$Native_Utils.chr('b'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$core$Native_Utils.chr('f'),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$core$Native_Utils.chr('v'),
+										_1: {ctor: '[]'}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isEscapableChar = function (c) {
+	return A2(_elm_lang$core$Set$member, c, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$escapableSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isEscapable = function (c) {
+	return _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('\\'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$escapable = A2(
+	_elm_tools$parser$Parser$delayedCommit,
+	_elm_tools$parser$Parser$symbol('\\'),
+	A2(
+		_elm_tools$parser$Parser$ignore,
+		_elm_tools$parser$Parser$Exactly(1),
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isEscapableChar));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen = F3(
+	function (f, list, plist) {
+		return A2(
+			_elm_tools$parser$Parser$andThen,
+			function (n) {
+				return f(
+					A2(_elm_lang$core$Basics_ops['++'], n, list));
+			},
+			plist);
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen = F3(
+	function (f, list, pn) {
+		return A2(
+			_elm_tools$parser$Parser$andThen,
+			function (n) {
+				return f(
+					{ctor: '::', _0: n, _1: list});
+			},
+			pn);
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore = F3(
+	function (count, isNotRelevant, previousParser) {
+		return A2(
+			_elm_tools$parser$Parser_ops['|.'],
+			previousParser,
+			A2(_elm_tools$parser$Parser$ignore, count, isNotRelevant));
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedUnnestable = F2(
+	function (_p0, revAList) {
+		var _p1 = _p0;
+		var _p5 = _p1;
+		var _p4 = _p1.isNotRelevant;
+		var _p3 = _p1.end;
+		var _p2 = _p1.defaultMap;
+		return _elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$map,
+					_elm_lang$core$Basics$always(
+						{
+							ctor: '::',
+							_0: _p2(_p3),
+							_1: revAList
+						}),
+					_elm_tools$parser$Parser$symbol(_p3)),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser$map,
+						_elm_lang$core$Basics$always(revAList),
+						_elm_tools$parser$Parser$end),
+					_1: {
+						ctor: '::',
+						_0: A3(
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen,
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedUnnestable(_p5),
+							revAList,
+							_elm_tools$parser$Parser$oneOf(_p1.innerParsers)),
+						_1: {
+							ctor: '::',
+							_0: A3(
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedUnnestable(_p5),
+								revAList,
+								_elm_tools$parser$Parser$oneOf(
+									{
+										ctor: '::',
+										_0: A2(
+											_elm_tools$parser$Parser$map,
+											_p2,
+											A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _p4)),
+										_1: {
+											ctor: '::',
+											_0: A2(
+												_elm_tools$parser$Parser$map,
+												_p2,
+												_elm_tools$parser$Parser$source(
+													A3(
+														_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+														_elm_tools$parser$Parser$zeroOrMore,
+														_p4,
+														A2(
+															_elm_tools$parser$Parser$ignore,
+															_elm_tools$parser$Parser$Exactly(1),
+															_elm_lang$core$Basics$always(true))))),
+											_1: {ctor: '[]'}
+										}
+									})),
+							_1: {ctor: '[]'}
+						}
+					}
+				}
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedNestable = F3(
+	function (nestLevel, _p6, revAList) {
+		var _p7 = _p6;
+		var _p11 = _p7;
+		var _p10 = _p7.isNotRelevant;
+		var _p9 = _p7.end;
+		var _p8 = _p7.defaultMap;
+		return _elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$andThen,
+					function (n) {
+						return _elm_lang$core$Native_Utils.eq(nestLevel, 1) ? _elm_tools$parser$Parser$succeed(n) : A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedNestable, nestLevel - 1, _p11, n);
+					},
+					A2(
+						_elm_tools$parser$Parser$map,
+						_elm_lang$core$Basics$always(
+							{
+								ctor: '::',
+								_0: _p8(_p9),
+								_1: revAList
+							}),
+						_elm_tools$parser$Parser$symbol(_p9))),
+				_1: {
+					ctor: '::',
+					_0: A3(
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+						A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedNestable, nestLevel + 1, _p11),
+						revAList,
+						A2(
+							_elm_tools$parser$Parser$map,
+							_p8,
+							_elm_tools$parser$Parser$source(
+								A3(
+									_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+									_elm_tools$parser$Parser$zeroOrMore,
+									_p10,
+									_elm_tools$parser$Parser$symbol(_p7.start))))),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser$map,
+							_elm_lang$core$Basics$always(revAList),
+							_elm_tools$parser$Parser$end),
+						_1: {
+							ctor: '::',
+							_0: A3(
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen,
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedUnnestable(_p11),
+								revAList,
+								_elm_tools$parser$Parser$oneOf(_p7.innerParsers)),
+							_1: {
+								ctor: '::',
+								_0: A3(
+									_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+									A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedNestable, nestLevel, _p11),
+									revAList,
+									_elm_tools$parser$Parser$oneOf(
+										{
+											ctor: '::',
+											_0: A2(
+												_elm_tools$parser$Parser$map,
+												_p8,
+												A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _p10)),
+											_1: {
+												ctor: '::',
+												_0: A2(
+													_elm_tools$parser$Parser$map,
+													_p8,
+													_elm_tools$parser$Parser$source(
+														A3(
+															_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+															_elm_tools$parser$Parser$zeroOrMore,
+															_p10,
+															A2(
+																_elm_tools$parser$Parser$ignore,
+																_elm_tools$parser$Parser$Exactly(1),
+																_elm_lang$core$Basics$always(true))))),
+												_1: {ctor: '[]'}
+											}
+										})),
+								_1: {ctor: '[]'}
+							}
+						}
+					}
+				}
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedHelp = F2(
+	function (_p12, revAList) {
+		var _p13 = _p12;
+		var _p17 = _p13;
+		var _p16 = _p13.isNotRelevant;
+		var _p14 = {
+			ctor: '_Tuple2',
+			_0: _elm_lang$core$String$uncons(_p17.start),
+			_1: _elm_lang$core$String$uncons(_p17.end)
+		};
+		if (_p14._0.ctor === 'Nothing') {
+			return _elm_tools$parser$Parser$fail('Trying to parse a delimited helper, but the start token cannot be an empty string!');
+		} else {
+			if (_p14._1.ctor === 'Nothing') {
+				return _elm_tools$parser$Parser$fail('Trying to parse a delimited helper, but the end token cannot be an empty string!');
+			} else {
+				var _p15 = _p14._1._0._0;
+				return _p17.isNestable ? A3(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedNestable,
+					1,
+					_elm_lang$core$Native_Utils.update(
+						_p17,
+						{
+							isNotRelevant: function (c) {
+								return _p16(c) && ((!_elm_lang$core$Native_Utils.eq(c, _p14._0._0._0)) && (!_elm_lang$core$Native_Utils.eq(c, _p15)));
+							}
+						}),
+					revAList) : A2(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedUnnestable,
+					_elm_lang$core$Native_Utils.update(
+						_p17,
+						{
+							isNotRelevant: function (c) {
+								return _p16(c) && (!_elm_lang$core$Native_Utils.eq(c, _p15));
+							}
+						}),
+					revAList);
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited = function (_p18) {
+	var _p19 = _p18;
+	var _p20 = _p19.start;
+	return A2(
+		_elm_tools$parser$Parser$andThen,
+		function (n) {
+			return A2(
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimitedHelp,
+				_p19,
+				{
+					ctor: '::',
+					_0: n,
+					_1: {ctor: '[]'}
+				});
+		},
+		A2(
+			_elm_tools$parser$Parser$map,
+			_elm_lang$core$Basics$always(
+				_p19.defaultMap(_p20)),
+			_elm_tools$parser$Parser$symbol(_p20)));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isNumber = function (c) {
+	return _elm_lang$core$Char$isDigit(c) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('.'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$number = A2(_elm_tools$parser$Parser$ignore, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isNumber);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak = function (c) {
+	return _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('\n'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isSpace = function (c) {
+	return _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr(' ')) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('\t'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace = function (c) {
+	return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isSpace(c) || _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$Delimiter = F6(
+	function (a, b, c, d, e, f) {
+		return {start: a, end: b, isNestable: c, defaultMap: d, innerParsers: e, isNotRelevant: f};
+	});
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$toFragment = function (_p0) {
+	var _p1 = _p0;
+	var _p3 = _p1._1;
+	var _p2 = _p1._0;
+	switch (_p2.ctor) {
+		case 'Normal':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p3);
+		case 'Comment':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color1, _p3);
+		case 'String':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color2, _p3);
+		case 'BasicSymbol':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color3, _p3);
+		case 'GroupSymbol':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color4, _p3);
+		case 'Capitalized':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color6, _p3);
+		case 'Keyword':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color3, _p3);
+		case 'Function':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color5, _p3);
+		case 'TypeSignature':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$emphasis, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color4, _p3);
+		case 'Space':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p3);
+		case 'LineBreak':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p3);
+		default:
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color6, _p3);
+	}
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isCommentChar = function (c) {
+	return _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('-')) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('{'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$commentChar = A2(
+	_elm_tools$parser$Parser$keep,
+	_elm_tools$parser$Parser$Exactly(1),
+	_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isCommentChar);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isStringLiteralChar = function (c) {
+	return _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('\"')) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('\''));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$infixSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: _elm_lang$core$Native_Utils.chr('+'),
+		_1: {
+			ctor: '::',
+			_0: _elm_lang$core$Native_Utils.chr('-'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$core$Native_Utils.chr('/'),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$core$Native_Utils.chr('*'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$core$Native_Utils.chr('='),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$core$Native_Utils.chr('.'),
+							_1: {
+								ctor: '::',
+								_0: _elm_lang$core$Native_Utils.chr('$'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$core$Native_Utils.chr('<'),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$core$Native_Utils.chr('>'),
+										_1: {
+											ctor: '::',
+											_0: _elm_lang$core$Native_Utils.chr(':'),
+											_1: {
+												ctor: '::',
+												_0: _elm_lang$core$Native_Utils.chr('&'),
+												_1: {
+													ctor: '::',
+													_0: _elm_lang$core$Native_Utils.chr('|'),
+													_1: {
+														ctor: '::',
+														_0: _elm_lang$core$Native_Utils.chr('^'),
+														_1: {
+															ctor: '::',
+															_0: _elm_lang$core$Native_Utils.chr('?'),
+															_1: {
+																ctor: '::',
+																_0: _elm_lang$core$Native_Utils.chr('%'),
+																_1: {
+																	ctor: '::',
+																	_0: _elm_lang$core$Native_Utils.chr('#'),
+																	_1: {
+																		ctor: '::',
+																		_0: _elm_lang$core$Native_Utils.chr('@'),
+																		_1: {
+																			ctor: '::',
+																			_0: _elm_lang$core$Native_Utils.chr('~'),
+																			_1: {
+																				ctor: '::',
+																				_0: _elm_lang$core$Native_Utils.chr('!'),
+																				_1: {
+																					ctor: '::',
+																					_0: _elm_lang$core$Native_Utils.chr(','),
+																					_1: {ctor: '[]'}
+																				}
+																			}
+																		}
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isInfixChar = function (c) {
+	return A2(_elm_lang$core$Set$member, c, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$infixSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$groupSymbols = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: _elm_lang$core$Native_Utils.chr(','),
+		_1: {
+			ctor: '::',
+			_0: _elm_lang$core$Native_Utils.chr('['),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$core$Native_Utils.chr(']'),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$core$Native_Utils.chr('{'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$core$Native_Utils.chr('}'),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isGroupSymbol = function (c) {
+	return A2(_elm_lang$core$Set$member, c, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$groupSymbols);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$groupSymbol = A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isGroupSymbol);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$basicSymbols = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: _elm_lang$core$Native_Utils.chr('|'),
+		_1: {
+			ctor: '::',
+			_0: _elm_lang$core$Native_Utils.chr('.'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$core$Native_Utils.chr('='),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$core$Native_Utils.chr('\\'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$core$Native_Utils.chr('/'),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$core$Native_Utils.chr('('),
+							_1: {
+								ctor: '::',
+								_0: _elm_lang$core$Native_Utils.chr(')'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$core$Native_Utils.chr('-'),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$core$Native_Utils.chr('>'),
+										_1: {
+											ctor: '::',
+											_0: _elm_lang$core$Native_Utils.chr('<'),
+											_1: {
+												ctor: '::',
+												_0: _elm_lang$core$Native_Utils.chr(':'),
+												_1: {
+													ctor: '::',
+													_0: _elm_lang$core$Native_Utils.chr('+'),
+													_1: {
+														ctor: '::',
+														_0: _elm_lang$core$Native_Utils.chr('!'),
+														_1: {
+															ctor: '::',
+															_0: _elm_lang$core$Native_Utils.chr('$'),
+															_1: {
+																ctor: '::',
+																_0: _elm_lang$core$Native_Utils.chr('%'),
+																_1: {
+																	ctor: '::',
+																	_0: _elm_lang$core$Native_Utils.chr('&'),
+																	_1: {
+																		ctor: '::',
+																		_0: _elm_lang$core$Native_Utils.chr('*'),
+																		_1: {ctor: '[]'}
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isBasicSymbol = function (c) {
+	return A2(_elm_lang$core$Set$member, c, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$basicSymbols);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isVariableChar = function (c) {
+	return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isBasicSymbol(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isGroupSymbol(c) || _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isStringLiteralChar(c))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$capitalized = _elm_tools$parser$Parser$source(
+	A3(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+		_elm_tools$parser$Parser$zeroOrMore,
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isVariableChar,
+		A2(
+			_elm_tools$parser$Parser$ignore,
+			_elm_tools$parser$Parser$Exactly(1),
+			_elm_lang$core$Char$isUpper)));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$variable = _elm_tools$parser$Parser$source(
+	A3(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+		_elm_tools$parser$Parser$zeroOrMore,
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isVariableChar,
+		A2(
+			_elm_tools$parser$Parser$ignore,
+			_elm_tools$parser$Parser$Exactly(1),
+			_elm_lang$core$Char$isLower)));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$weirdText = A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isVariableChar);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$basicSymbol = A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isBasicSymbol);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$keywordSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: 'as',
+		_1: {
+			ctor: '::',
+			_0: 'where',
+			_1: {
+				ctor: '::',
+				_0: 'let',
+				_1: {
+					ctor: '::',
+					_0: 'in',
+					_1: {
+						ctor: '::',
+						_0: 'if',
+						_1: {
+							ctor: '::',
+							_0: 'else',
+							_1: {
+								ctor: '::',
+								_0: 'then',
+								_1: {
+									ctor: '::',
+									_0: 'case',
+									_1: {
+										ctor: '::',
+										_0: 'of',
+										_1: {
+											ctor: '::',
+											_0: 'type',
+											_1: {
+												ctor: '::',
+												_0: 'alias',
+												_1: {ctor: '[]'}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isKeyword = function (str) {
+	return A2(_elm_lang$core$Set$member, str, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$keywordSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigIsNotRelevant = function (c) {
+	return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('(')) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr(')')) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('-')) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr(','))))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$mdpnIsSpecialChar = function (c) {
+	return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isCommentChar(c) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('(')) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr(')'))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$mdpIsNotRelevant = function (c) {
+	return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isCommentChar(c) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('(')) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr(')')) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr(',')) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('.')))))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecIsNotRelevant = function (c) {
+	return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isCommentChar(c) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('('))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Number = {ctor: 'Number'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$LineBreak = {ctor: 'LineBreak'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineBreak = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$LineBreak),
+	A2(
+		_elm_tools$parser$Parser$keep,
+		_elm_tools$parser$Parser$Exactly(1),
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineBreakList = A2(_elm_tools$parser$Parser$repeat, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineBreak);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Space = {ctor: 'Space'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$space = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Space),
+	A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isSpace));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$TypeSignature = {ctor: 'TypeSignature'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Function = {ctor: 'Function'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$infixParser = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Function),
+	_elm_tools$parser$Parser$source(
+		A2(
+			_elm_tools$parser$Parser$delayedCommit,
+			_elm_tools$parser$Parser$symbol('('),
+			A2(
+				_elm_tools$parser$Parser$delayedCommit,
+				A2(_elm_tools$parser$Parser$ignore, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isInfixChar),
+				_elm_tools$parser$Parser$symbol(')')))));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword = {ctor: 'Keyword'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Capitalized = {ctor: 'Capitalized'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$elmEscapable = A2(
+	_elm_tools$parser$Parser$repeat,
+	_elm_tools$parser$Parser$oneOrMore,
+	A2(
+		_elm_tools$parser$Parser$map,
+		F2(
+			function (v0, v1) {
+				return {ctor: '_Tuple2', _0: v0, _1: v1};
+			})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Capitalized),
+		_elm_tools$parser$Parser$source(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$escapable)));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$GroupSymbol = {ctor: 'GroupSymbol'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$BasicSymbol = {ctor: 'BasicSymbol'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$String = {ctor: 'String'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$stringDelimiter = {
+	start: '\"',
+	end: '\"',
+	isNestable: false,
+	defaultMap: F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$String),
+	innerParsers: {
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineBreakList,
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$elmEscapable,
+			_1: {ctor: '[]'}
+		}
+	},
+	isNotRelevant: function (c) {
+		return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c) || _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isEscapable(c));
+	}
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$doubleQuote = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$stringDelimiter);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$tripleDoubleQuote = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	_elm_lang$core$Native_Utils.update(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$stringDelimiter,
+		{start: '\"\"\"', end: '\"\"\"'}));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$quote = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	_elm_lang$core$Native_Utils.update(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$stringDelimiter,
+		{start: '\'', end: '\''}));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$stringLiteral = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$tripleDoubleQuote,
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$doubleQuote,
+			_1: {
+				ctor: '::',
+				_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$quote,
+				_1: {ctor: '[]'}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Comment = {ctor: 'Comment'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$inlineComment = A2(
+	_elm_tools$parser$Parser$map,
+	function (_p4) {
+		return _elm_lang$core$List$singleton(
+			A2(
+				F2(
+					function (v0, v1) {
+						return {ctor: '_Tuple2', _0: v0, _1: v1};
+					}),
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Comment,
+				_p4));
+	},
+	_elm_tools$parser$Parser$source(
+		A3(
+			_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+			_elm_tools$parser$Parser$zeroOrMore,
+			function (_p5) {
+				return !_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(_p5);
+			},
+			_elm_tools$parser$Parser$symbol('--'))));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$multilineComment = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	{
+		start: '{-',
+		end: '-}',
+		isNestable: true,
+		defaultMap: F2(
+			function (v0, v1) {
+				return {ctor: '_Tuple2', _0: v0, _1: v1};
+			})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Comment),
+		innerParsers: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineBreakList,
+			_1: {ctor: '[]'}
+		},
+		isNotRelevant: function (c) {
+			return !_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c);
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$comment = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$inlineComment,
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$multilineComment,
+			_1: {ctor: '[]'}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment = F2(
+	function (continueFunction, revSyntaxes) {
+		return _elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, continueFunction, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$space),
+				_1: {
+					ctor: '::',
+					_0: A3(
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$checkContext(continueFunction),
+						revSyntaxes,
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineBreak),
+					_1: {
+						ctor: '::',
+						_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen, continueFunction, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$comment),
+						_1: {ctor: '[]'}
+					}
+				}
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$checkContext = F2(
+	function (continueFunction, revSyntaxes) {
+		return _elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, continueFunction, revSyntaxes),
+				_1: {
+					ctor: '::',
+					_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+					_1: {ctor: '[]'}
+				}
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal = {ctor: 'Normal'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParNest = F2(
+	function (nestLevel, revSyntaxes) {
+		return _elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A2(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment,
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParNest(nestLevel),
+					revSyntaxes),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser$andThen,
+						function (n) {
+							return A2(
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParNest,
+								nestLevel + 1,
+								{ctor: '::', _0: n, _1: revSyntaxes});
+						},
+						A2(
+							_elm_tools$parser$Parser$map,
+							_elm_lang$core$Basics$always(
+								{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal, _1: '('}),
+							_elm_tools$parser$Parser$symbol('('))),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser$andThen,
+							function (n) {
+								return _elm_lang$core$Native_Utils.eq(nestLevel, 0) ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParentheses(
+									{ctor: '::', _0: n, _1: revSyntaxes}) : A2(
+									_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParNest,
+									nestLevel - 1,
+									{ctor: '::', _0: n, _1: revSyntaxes});
+							},
+							A2(
+								_elm_tools$parser$Parser$map,
+								_elm_lang$core$Basics$always(
+									{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal, _1: ')'}),
+								_elm_tools$parser$Parser$symbol(')'))),
+						_1: {
+							ctor: '::',
+							_0: A3(
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParNest(nestLevel),
+								revSyntaxes,
+								_elm_tools$parser$Parser$oneOf(
+									{
+										ctor: '::',
+										_0: A2(
+											_elm_tools$parser$Parser$map,
+											F2(
+												function (v0, v1) {
+													return {ctor: '_Tuple2', _0: v0, _1: v1};
+												})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+											_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$commentChar),
+										_1: {
+											ctor: '::',
+											_0: A2(
+												_elm_tools$parser$Parser$map,
+												F2(
+													function (v0, v1) {
+														return {ctor: '_Tuple2', _0: v0, _1: v1};
+													})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+												A2(
+													_elm_tools$parser$Parser$keep,
+													_elm_tools$parser$Parser$oneOrMore,
+													function (_p6) {
+														return !_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$mdpnIsSpecialChar(_p6);
+													})),
+											_1: {ctor: '[]'}
+										}
+									})),
+							_1: {
+								ctor: '::',
+								_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+								_1: {ctor: '[]'}
+							}
+						}
+					}
+				}
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParentheses = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParentheses, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A3(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$moduleDeclaration,
+					revSyntaxes,
+					A2(
+						_elm_tools$parser$Parser$map,
+						_elm_lang$core$Basics$always(
+							{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal, _1: ')'}),
+						_elm_tools$parser$Parser$symbol(')'))),
+				_1: {
+					ctor: '::',
+					_0: A3(
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParentheses,
+						revSyntaxes,
+						_elm_tools$parser$Parser$oneOf(
+							{
+								ctor: '::',
+								_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$infixParser,
+								_1: {
+									ctor: '::',
+									_0: A2(
+										_elm_tools$parser$Parser$map,
+										F2(
+											function (v0, v1) {
+												return {ctor: '_Tuple2', _0: v0, _1: v1};
+											})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+										_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$commentChar),
+									_1: {
+										ctor: '::',
+										_0: A2(
+											_elm_tools$parser$Parser$map,
+											F2(
+												function (v0, v1) {
+													return {ctor: '_Tuple2', _0: v0, _1: v1};
+												})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+											A2(
+												_elm_tools$parser$Parser$keep,
+												_elm_tools$parser$Parser$oneOrMore,
+												function (c) {
+													return _elm_lang$core$Native_Utils.eq(
+														c,
+														_elm_lang$core$Native_Utils.chr(',')) || _elm_lang$core$Native_Utils.eq(
+														c,
+														_elm_lang$core$Native_Utils.chr('.'));
+												})),
+										_1: {
+											ctor: '::',
+											_0: A2(
+												_elm_tools$parser$Parser$map,
+												F2(
+													function (v0, v1) {
+														return {ctor: '_Tuple2', _0: v0, _1: v1};
+													})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$TypeSignature),
+												_elm_tools$parser$Parser$source(
+													A3(
+														_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+														_elm_tools$parser$Parser$zeroOrMore,
+														_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$mdpIsNotRelevant,
+														A2(
+															_elm_tools$parser$Parser$ignore,
+															_elm_tools$parser$Parser$Exactly(1),
+															_elm_lang$core$Char$isUpper)))),
+											_1: {
+												ctor: '::',
+												_0: A2(
+													_elm_tools$parser$Parser$map,
+													F2(
+														function (v0, v1) {
+															return {ctor: '_Tuple2', _0: v0, _1: v1};
+														})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Function),
+													A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$mdpIsNotRelevant)),
+												_1: {ctor: '[]'}
+											}
+										}
+									}
+								}
+							})),
+					_1: {
+						ctor: '::',
+						_0: A3(
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParNest(0),
+							revSyntaxes,
+							A2(
+								_elm_tools$parser$Parser$map,
+								_elm_lang$core$Basics$always(
+									{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal, _1: '('}),
+								_elm_tools$parser$Parser$symbol('('))),
+						_1: {
+							ctor: '::',
+							_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+							_1: {ctor: '[]'}
+						}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$moduleDeclaration = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$moduleDeclaration, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A3(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecParentheses,
+					revSyntaxes,
+					A2(
+						_elm_tools$parser$Parser$map,
+						_elm_lang$core$Basics$always(
+							{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal, _1: '('}),
+						_elm_tools$parser$Parser$symbol('('))),
+				_1: {
+					ctor: '::',
+					_0: A3(
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$moduleDeclaration,
+						revSyntaxes,
+						_elm_tools$parser$Parser$oneOf(
+							{
+								ctor: '::',
+								_0: A2(
+									_elm_tools$parser$Parser$map,
+									F2(
+										function (v0, v1) {
+											return {ctor: '_Tuple2', _0: v0, _1: v1};
+										})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+									_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$commentChar),
+								_1: {
+									ctor: '::',
+									_0: A2(
+										_elm_tools$parser$Parser$map,
+										_elm_lang$core$Basics$always(
+											{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword, _1: 'exposing'}),
+										_elm_tools$parser$Parser$keyword('exposing')),
+									_1: {
+										ctor: '::',
+										_0: A2(
+											_elm_tools$parser$Parser$map,
+											_elm_lang$core$Basics$always(
+												{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword, _1: 'as'}),
+											_elm_tools$parser$Parser$keyword('as')),
+										_1: {
+											ctor: '::',
+											_0: A2(
+												_elm_tools$parser$Parser$map,
+												F2(
+													function (v0, v1) {
+														return {ctor: '_Tuple2', _0: v0, _1: v1};
+													})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+												A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$modDecIsNotRelevant)),
+											_1: {ctor: '[]'}
+										}
+									}
+								}
+							})),
+					_1: {
+						ctor: '::',
+						_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigContentHelp = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: A2(
+			_elm_tools$parser$Parser$map,
+			_elm_lang$core$Basics$always(
+				{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$TypeSignature, _1: '()'}),
+			_elm_tools$parser$Parser$symbol('()')),
+		_1: {
+			ctor: '::',
+			_0: A2(
+				_elm_tools$parser$Parser$map,
+				_elm_lang$core$Basics$always(
+					{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$BasicSymbol, _1: '->'}),
+				_elm_tools$parser$Parser$symbol('->')),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$map,
+					F2(
+						function (v0, v1) {
+							return {ctor: '_Tuple2', _0: v0, _1: v1};
+						})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+					A2(
+						_elm_tools$parser$Parser$keep,
+						_elm_tools$parser$Parser$oneOrMore,
+						function (c) {
+							return _elm_lang$core$Native_Utils.eq(
+								c,
+								_elm_lang$core$Native_Utils.chr('(')) || (_elm_lang$core$Native_Utils.eq(
+								c,
+								_elm_lang$core$Native_Utils.chr(')')) || (_elm_lang$core$Native_Utils.eq(
+								c,
+								_elm_lang$core$Native_Utils.chr('-')) || _elm_lang$core$Native_Utils.eq(
+								c,
+								_elm_lang$core$Native_Utils.chr(','))));
+						})),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser$map,
+						F2(
+							function (v0, v1) {
+								return {ctor: '_Tuple2', _0: v0, _1: v1};
+							})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$TypeSignature),
+						_elm_tools$parser$Parser$source(
+							A3(
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+								_elm_tools$parser$Parser$zeroOrMore,
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigIsNotRelevant,
+								A2(
+									_elm_tools$parser$Parser$ignore,
+									_elm_tools$parser$Parser$Exactly(1),
+									_elm_lang$core$Char$isUpper)))),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser$map,
+							F2(
+								function (v0, v1) {
+									return {ctor: '_Tuple2', _0: v0, _1: v1};
+								})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+							A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigIsNotRelevant)),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigContent = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigContent, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigContent, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigContentHelp),
+				_1: {
+					ctor: '::',
+					_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+					_1: {ctor: '[]'}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBodyContent = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: A2(
+			_elm_tools$parser$Parser$map,
+			F2(
+				function (v0, v1) {
+					return {ctor: '_Tuple2', _0: v0, _1: v1};
+				})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Number),
+			_elm_tools$parser$Parser$source(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$number)),
+		_1: {
+			ctor: '::',
+			_0: A2(
+				_elm_tools$parser$Parser$map,
+				_elm_lang$core$Basics$always(
+					{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Capitalized, _1: '()'}),
+				_elm_tools$parser$Parser$symbol('()')),
+			_1: {
+				ctor: '::',
+				_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$infixParser,
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser$map,
+						F2(
+							function (v0, v1) {
+								return {ctor: '_Tuple2', _0: v0, _1: v1};
+							})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$BasicSymbol),
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$basicSymbol),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser$map,
+							F2(
+								function (v0, v1) {
+									return {ctor: '_Tuple2', _0: v0, _1: v1};
+								})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$GroupSymbol),
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$groupSymbol),
+						_1: {
+							ctor: '::',
+							_0: A2(
+								_elm_tools$parser$Parser$map,
+								F2(
+									function (v0, v1) {
+										return {ctor: '_Tuple2', _0: v0, _1: v1};
+									})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Capitalized),
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$capitalized),
+							_1: {
+								ctor: '::',
+								_0: A2(
+									_elm_tools$parser$Parser$map,
+									function (n) {
+										return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isKeyword(n) ? {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword, _1: n} : {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal, _1: n};
+									},
+									_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$variable),
+								_1: {
+									ctor: '::',
+									_0: A2(
+										_elm_tools$parser$Parser$map,
+										F2(
+											function (v0, v1) {
+												return {ctor: '_Tuple2', _0: v0, _1: v1};
+											})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Normal),
+										_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$weirdText),
+									_1: {ctor: '[]'}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$stringLiteral),
+				_1: {
+					ctor: '::',
+					_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBodyContent),
+					_1: {
+						ctor: '::',
+						_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionSignature = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A3(
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$fnSigContent,
+				revSyntaxes,
+				A2(
+					_elm_tools$parser$Parser$map,
+					_elm_lang$core$Basics$always(
+						{ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$BasicSymbol, _1: ':'}),
+					_elm_tools$parser$Parser$symbol(':'))),
+			_1: {
+				ctor: '::',
+				_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionSignature, revSyntaxes),
+				_1: {
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody(revSyntaxes),
+					_1: {ctor: '[]'}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$portDeclarationHelp = F2(
+	function (revSyntaxes, str) {
+		return _elm_lang$core$Native_Utils.eq(str, 'module') ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$moduleDeclaration(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword, _1: str},
+				_1: revSyntaxes
+			}) : _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionSignature(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Function, _1: str},
+				_1: revSyntaxes
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$portDeclaration = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$portDeclaration, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$andThen,
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$portDeclarationHelp(revSyntaxes),
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$variable),
+				_1: {
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody(revSyntaxes),
+					_1: {ctor: '[]'}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineStartVariable = F2(
+	function (revSyntaxes, n) {
+		return (_elm_lang$core$Native_Utils.eq(n, 'module') || _elm_lang$core$Native_Utils.eq(n, 'import')) ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$moduleDeclaration(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword, _1: n},
+				_1: revSyntaxes
+			}) : (_elm_lang$core$Native_Utils.eq(n, 'port') ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$portDeclaration(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword, _1: n},
+				_1: revSyntaxes
+			}) : (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$isKeyword(n) ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Keyword, _1: n},
+				_1: revSyntaxes
+			}) : _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionSignature(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$Function, _1: n},
+				_1: revSyntaxes
+			})));
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineStart = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$whitespaceOrComment, _elm_tools$parser$Parser$succeed, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$andThen,
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineStartVariable(revSyntaxes),
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$variable),
+				_1: {
+					ctor: '::',
+					_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$stringLiteral),
+					_1: {
+						ctor: '::',
+						_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBody, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$functionBodyContent),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$toSyntax = _elm_tools$parser$Parser$run(
+	A2(
+		_elm_tools$parser$Parser$map,
+		function (_p7) {
+			return _elm_lang$core$List$concat(
+				_elm_lang$core$List$reverse(_p7));
+		},
+		A2(
+			_elm_tools$parser$Parser$repeat,
+			_elm_tools$parser$Parser$zeroOrMore,
+			_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$lineStart(
+				{ctor: '[]'}))));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$parse = function (_p8) {
+	return A2(
+		_elm_lang$core$Result$map,
+		A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$toLines, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$LineBreak, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$toFragment),
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$toSyntax(_p8));
+};
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$toFragment = function (_p0) {
+	var _p1 = _p0;
+	var _p3 = _p1._1;
+	var _p2 = _p1._0;
+	switch (_p2.ctor) {
+		case 'Normal':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p3);
+		case 'Comment':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color1, _p3);
+		case 'Tag':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color3, _p3);
+		case 'Attribute':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color5, _p3);
+		case 'AttributeValue':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color2, _p3);
+		default:
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p3);
+	}
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isStartTagChar = function (c) {
+	return _elm_lang$core$Char$isUpper(c) || (_elm_lang$core$Char$isLower(c) || _elm_lang$core$Char$isDigit(c));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isTagChar = function (c) {
+	return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isStartTagChar(c) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('-'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isAttributeChar = function (c) {
+	return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isTagChar(c) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('_'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$LineBreak = {ctor: 'LineBreak'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$lineBreak = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$LineBreak),
+	A2(
+		_elm_tools$parser$Parser$keep,
+		_elm_tools$parser$Parser$Exactly(1),
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$lineBreakList = A2(_elm_tools$parser$Parser$repeat, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$lineBreak);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$AttributeValue = {ctor: 'AttributeValue'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$doubleQuoteDelimiter = {
+	start: '\"',
+	end: '\"',
+	isNestable: false,
+	defaultMap: F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$AttributeValue),
+	innerParsers: {
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$lineBreakList,
+		_1: {ctor: '[]'}
+	},
+	isNotRelevant: function (_p4) {
+		return !_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(_p4);
+	}
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$doubleQuote = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$doubleQuoteDelimiter);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$quote = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	_elm_lang$core$Native_Utils.update(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$doubleQuoteDelimiter,
+		{start: '\'', end: '\''}));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeValue = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$doubleQuote,
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$quote,
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$map,
+					function (_p5) {
+						return _elm_lang$core$List$singleton(
+							A2(
+								F2(
+									function (v0, v1) {
+										return {ctor: '_Tuple2', _0: v0, _1: v1};
+									}),
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$AttributeValue,
+								_p5));
+					},
+					_elm_tools$parser$Parser$source(
+						A2(
+							_elm_tools$parser$Parser$ignore,
+							_elm_tools$parser$Parser$oneOrMore,
+							function (c) {
+								return (!_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c)) && (!_elm_lang$core$Native_Utils.eq(
+									c,
+									_elm_lang$core$Native_Utils.chr('>')));
+							}))),
+				_1: {ctor: '[]'}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Attribute = {ctor: 'Attribute'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Tag = {ctor: 'Tag'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Comment = {ctor: 'Comment'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$comment = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	_elm_lang$core$Native_Utils.update(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$doubleQuoteDelimiter,
+		{
+			start: '<!--',
+			end: '-->',
+			defaultMap: F2(
+				function (v0, v1) {
+					return {ctor: '_Tuple2', _0: v0, _1: v1};
+				})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Comment)
+		}));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal = {ctor: 'Normal'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$endTag = function (revSyntaxes) {
+	return A3(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+		_elm_tools$parser$Parser$succeed,
+		revSyntaxes,
+		A2(
+			_elm_tools$parser$Parser$map,
+			F2(
+				function (v0, v1) {
+					return {ctor: '_Tuple2', _0: v0, _1: v1};
+				})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal),
+			A2(
+				_elm_tools$parser$Parser$keep,
+				_elm_tools$parser$Parser$oneOrMore,
+				F2(
+					function (x, y) {
+						return _elm_lang$core$Native_Utils.eq(x, y);
+					})(
+					_elm_lang$core$Native_Utils.chr('>')))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$chompUntilEndTag = function (revSyntaxes) {
+	return A3(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+		_elm_tools$parser$Parser$succeed,
+		revSyntaxes,
+		A2(
+			_elm_tools$parser$Parser$map,
+			F2(
+				function (v0, v1) {
+					return {ctor: '_Tuple2', _0: v0, _1: v1};
+				})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal),
+			_elm_tools$parser$Parser$source(
+				A3(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+					_elm_tools$parser$Parser$zeroOrMore,
+					F2(
+						function (x, y) {
+							return _elm_lang$core$Native_Utils.eq(x, y);
+						})(
+						_elm_lang$core$Native_Utils.chr('>')),
+					A2(
+						_elm_tools$parser$Parser$ignore,
+						_elm_tools$parser$Parser$zeroOrMore,
+						function (c) {
+							return (!_elm_lang$core$Native_Utils.eq(
+								c,
+								_elm_lang$core$Native_Utils.chr('>'))) && (!_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c));
+						})))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$whitespace = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: A2(
+			_elm_tools$parser$Parser$map,
+			F2(
+				function (v0, v1) {
+					return {ctor: '_Tuple2', _0: v0, _1: v1};
+				})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal),
+			A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isSpace)),
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$lineBreak,
+			_1: {ctor: '[]'}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeValueLoop = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeValueLoop, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$whitespace),
+			_1: {
+				ctor: '::',
+				_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeLoop, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeValue),
+				_1: {
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$endTag(revSyntaxes),
+					_1: {
+						ctor: '::',
+						_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeLoop = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A3(
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeConfirm,
+				revSyntaxes,
+				A2(
+					_elm_tools$parser$Parser$map,
+					F2(
+						function (v0, v1) {
+							return {ctor: '_Tuple2', _0: v0, _1: v1};
+						})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Attribute),
+					A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isAttributeChar))),
+			_1: {
+				ctor: '::',
+				_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeLoop, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$whitespace),
+				_1: {
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$endTag(revSyntaxes),
+					_1: {
+						ctor: '::',
+						_0: A3(
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeLoop,
+							revSyntaxes,
+							A2(
+								_elm_tools$parser$Parser$map,
+								F2(
+									function (v0, v1) {
+										return {ctor: '_Tuple2', _0: v0, _1: v1};
+									})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal),
+								A2(
+									_elm_tools$parser$Parser$keep,
+									_elm_tools$parser$Parser$oneOrMore,
+									function (c) {
+										return (!_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c)) && (!_elm_lang$core$Native_Utils.eq(
+											c,
+											_elm_lang$core$Native_Utils.chr('>')));
+									}))),
+						_1: {
+							ctor: '::',
+							_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+							_1: {ctor: '[]'}
+						}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeConfirm = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeConfirm, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$whitespace),
+			_1: {
+				ctor: '::',
+				_0: A3(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeValueLoop,
+					revSyntaxes,
+					A2(
+						_elm_tools$parser$Parser$map,
+						F2(
+							function (v0, v1) {
+								return {ctor: '_Tuple2', _0: v0, _1: v1};
+							})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal),
+						A2(
+							_elm_tools$parser$Parser$keep,
+							_elm_tools$parser$Parser$Exactly(1),
+							F2(
+								function (x, y) {
+									return _elm_lang$core$Native_Utils.eq(x, y);
+								})(
+								_elm_lang$core$Native_Utils.chr('='))))),
+				_1: {
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$endTag(revSyntaxes),
+					_1: {
+						ctor: '::',
+						_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeLoop(revSyntaxes),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$tag = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A3(
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$attributeLoop,
+				revSyntaxes,
+				A2(
+					_elm_tools$parser$Parser$map,
+					F2(
+						function (v0, v1) {
+							return {ctor: '_Tuple2', _0: v0, _1: v1};
+						})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Tag),
+					_elm_tools$parser$Parser$source(
+						A3(
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$thenIgnore,
+							_elm_tools$parser$Parser$zeroOrMore,
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isTagChar,
+							A2(
+								_elm_tools$parser$Parser$ignore,
+								_elm_tools$parser$Parser$Exactly(1),
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$isStartTagChar))))),
+			_1: {
+				ctor: '::',
+				_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$chompUntilEndTag(revSyntaxes),
+				_1: {ctor: '[]'}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$openTag = function (revSyntaxes) {
+	return A3(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$tag,
+		revSyntaxes,
+		A2(
+			_elm_tools$parser$Parser$map,
+			F2(
+				function (v0, v1) {
+					return {ctor: '_Tuple2', _0: v0, _1: v1};
+				})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal),
+			_elm_tools$parser$Parser$source(
+				A2(
+					_elm_tools$parser$Parser_ops['|.'],
+					A2(
+						_elm_tools$parser$Parser$ignore,
+						_elm_tools$parser$Parser$oneOrMore,
+						F2(
+							function (x, y) {
+								return _elm_lang$core$Native_Utils.eq(x, y);
+							})(
+							_elm_lang$core$Native_Utils.chr('<'))),
+					_elm_tools$parser$Parser$oneOf(
+						{
+							ctor: '::',
+							_0: A2(
+								_elm_tools$parser$Parser$ignore,
+								_elm_tools$parser$Parser$Exactly(1),
+								function (c) {
+									return _elm_lang$core$Native_Utils.eq(
+										c,
+										_elm_lang$core$Native_Utils.chr('/')) || _elm_lang$core$Native_Utils.eq(
+										c,
+										_elm_lang$core$Native_Utils.chr('!'));
+								}),
+							_1: {
+								ctor: '::',
+								_0: _elm_tools$parser$Parser$succeed(
+									{ctor: '_Tuple0'}),
+								_1: {ctor: '[]'}
+							}
+						})))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$mainLoop = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen, _elm_tools$parser$Parser$succeed, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$whitespace),
+			_1: {
+				ctor: '::',
+				_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen, _elm_tools$parser$Parser$succeed, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$comment),
+				_1: {
+					ctor: '::',
+					_0: A3(
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+						_elm_tools$parser$Parser$succeed,
+						revSyntaxes,
+						A2(
+							_elm_tools$parser$Parser$map,
+							F2(
+								function (v0, v1) {
+									return {ctor: '_Tuple2', _0: v0, _1: v1};
+								})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$Normal),
+							A2(
+								_elm_tools$parser$Parser$keep,
+								_elm_tools$parser$Parser$oneOrMore,
+								function (c) {
+									return (!_elm_lang$core$Native_Utils.eq(
+										c,
+										_elm_lang$core$Native_Utils.chr('<'))) && (!_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c));
+								}))),
+					_1: {
+						ctor: '::',
+						_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$openTag(revSyntaxes),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$toSyntax = _elm_tools$parser$Parser$run(
+	A2(
+		_elm_tools$parser$Parser$map,
+		function (_p6) {
+			return _elm_lang$core$List$concat(
+				_elm_lang$core$List$reverse(_p6));
+		},
+		A2(
+			_elm_tools$parser$Parser$repeat,
+			_elm_tools$parser$Parser$zeroOrMore,
+			_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$mainLoop(
+				{ctor: '[]'}))));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$parse = function (_p7) {
+	return A2(
+		_elm_lang$core$Result$map,
+		A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$toLines, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$LineBreak, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$toFragment),
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$toSyntax(_p7));
+};
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$toFragment = function (_p0) {
+	var _p1 = _p0;
+	var _p3 = _p1._1;
+	var _p2 = _p1._0;
+	switch (_p2.ctor) {
+		case 'Normal':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p3);
+		case 'Comment':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color1, _p3);
+		case 'String':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color2, _p3);
+		case 'Keyword':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color3, _p3);
+		case 'DeclarationKeyword':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$emphasis, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color4, _p3);
+		case 'FunctionEval':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color4, _p3);
+		case 'Function':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color5, _p3);
+		case 'LiteralKeyword':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color6, _p3);
+		case 'Param':
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Color7, _p3);
+		default:
+			return A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$normal, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Default, _p3);
+	}
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isCommentChar = function (c) {
+	return _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('/'));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isStringLiteralChar = function (c) {
+	return _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('\"')) || (_elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('\'')) || _elm_lang$core$Native_Utils.eq(
+		c,
+		_elm_lang$core$Native_Utils.chr('`')));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$literalKeywordSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: 'true',
+		_1: {
+			ctor: '::',
+			_0: 'false',
+			_1: {
+				ctor: '::',
+				_0: 'null',
+				_1: {
+					ctor: '::',
+					_0: 'undefined',
+					_1: {
+						ctor: '::',
+						_0: 'NaN',
+						_1: {
+							ctor: '::',
+							_0: 'Infinity',
+							_1: {ctor: '[]'}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isLiteralKeyword = function (str) {
+	return A2(_elm_lang$core$Set$member, str, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$literalKeywordSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$groupSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: _elm_lang$core$Native_Utils.chr('{'),
+		_1: {
+			ctor: '::',
+			_0: _elm_lang$core$Native_Utils.chr('}'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$core$Native_Utils.chr('('),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$core$Native_Utils.chr(')'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$core$Native_Utils.chr('['),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$core$Native_Utils.chr(']'),
+							_1: {
+								ctor: '::',
+								_0: _elm_lang$core$Native_Utils.chr(','),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$core$Native_Utils.chr(';'),
+									_1: {ctor: '[]'}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isGroupChar = function (c) {
+	return A2(_elm_lang$core$Set$member, c, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$groupSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$operatorSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: _elm_lang$core$Native_Utils.chr('+'),
+		_1: {
+			ctor: '::',
+			_0: _elm_lang$core$Native_Utils.chr('-'),
+			_1: {
+				ctor: '::',
+				_0: _elm_lang$core$Native_Utils.chr('*'),
+				_1: {
+					ctor: '::',
+					_0: _elm_lang$core$Native_Utils.chr('/'),
+					_1: {
+						ctor: '::',
+						_0: _elm_lang$core$Native_Utils.chr('='),
+						_1: {
+							ctor: '::',
+							_0: _elm_lang$core$Native_Utils.chr('!'),
+							_1: {
+								ctor: '::',
+								_0: _elm_lang$core$Native_Utils.chr('<'),
+								_1: {
+									ctor: '::',
+									_0: _elm_lang$core$Native_Utils.chr('>'),
+									_1: {
+										ctor: '::',
+										_0: _elm_lang$core$Native_Utils.chr('&'),
+										_1: {
+											ctor: '::',
+											_0: _elm_lang$core$Native_Utils.chr('|'),
+											_1: {
+												ctor: '::',
+												_0: _elm_lang$core$Native_Utils.chr('?'),
+												_1: {
+													ctor: '::',
+													_0: _elm_lang$core$Native_Utils.chr('^'),
+													_1: {
+														ctor: '::',
+														_0: _elm_lang$core$Native_Utils.chr(':'),
+														_1: {
+															ctor: '::',
+															_0: _elm_lang$core$Native_Utils.chr('~'),
+															_1: {
+																ctor: '::',
+																_0: _elm_lang$core$Native_Utils.chr('%'),
+																_1: {
+																	ctor: '::',
+																	_0: _elm_lang$core$Native_Utils.chr('.'),
+																	_1: {ctor: '[]'}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isOperatorChar = function (c) {
+	return A2(_elm_lang$core$Set$member, c, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$operatorSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$punctuactorSet = A2(_elm_lang$core$Set$union, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$operatorSet, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$groupSet);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isPunctuaction = function (c) {
+	return A2(_elm_lang$core$Set$member, c, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$punctuactorSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$declarationKeywordSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: 'var',
+		_1: {
+			ctor: '::',
+			_0: 'const',
+			_1: {
+				ctor: '::',
+				_0: 'let',
+				_1: {ctor: '[]'}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isDeclarationKeyword = function (str) {
+	return A2(_elm_lang$core$Set$member, str, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$declarationKeywordSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$keywordSet = _elm_lang$core$Set$fromList(
+	{
+		ctor: '::',
+		_0: 'break',
+		_1: {
+			ctor: '::',
+			_0: 'do',
+			_1: {
+				ctor: '::',
+				_0: 'instanceof',
+				_1: {
+					ctor: '::',
+					_0: 'typeof',
+					_1: {
+						ctor: '::',
+						_0: 'case',
+						_1: {
+							ctor: '::',
+							_0: 'else',
+							_1: {
+								ctor: '::',
+								_0: 'new',
+								_1: {
+									ctor: '::',
+									_0: 'catch',
+									_1: {
+										ctor: '::',
+										_0: 'finally',
+										_1: {
+											ctor: '::',
+											_0: 'return',
+											_1: {
+												ctor: '::',
+												_0: 'void',
+												_1: {
+													ctor: '::',
+													_0: 'continue',
+													_1: {
+														ctor: '::',
+														_0: 'for',
+														_1: {
+															ctor: '::',
+															_0: 'switch',
+															_1: {
+																ctor: '::',
+																_0: 'while',
+																_1: {
+																	ctor: '::',
+																	_0: 'debugger',
+																	_1: {
+																		ctor: '::',
+																		_0: 'this',
+																		_1: {
+																			ctor: '::',
+																			_0: 'with',
+																			_1: {
+																				ctor: '::',
+																				_0: 'default',
+																				_1: {
+																					ctor: '::',
+																					_0: 'if',
+																					_1: {
+																						ctor: '::',
+																						_0: 'throw',
+																						_1: {
+																							ctor: '::',
+																							_0: 'delete',
+																							_1: {
+																								ctor: '::',
+																								_0: 'in',
+																								_1: {
+																									ctor: '::',
+																									_0: 'try',
+																									_1: {
+																										ctor: '::',
+																										_0: 'enum',
+																										_1: {
+																											ctor: '::',
+																											_0: 'extends',
+																											_1: {
+																												ctor: '::',
+																												_0: 'export',
+																												_1: {
+																													ctor: '::',
+																													_0: 'import',
+																													_1: {
+																														ctor: '::',
+																														_0: 'implements',
+																														_1: {
+																															ctor: '::',
+																															_0: 'private',
+																															_1: {
+																																ctor: '::',
+																																_0: 'public',
+																																_1: {
+																																	ctor: '::',
+																																	_0: 'yield',
+																																	_1: {
+																																		ctor: '::',
+																																		_0: 'interface',
+																																		_1: {
+																																			ctor: '::',
+																																			_0: 'package',
+																																			_1: {
+																																				ctor: '::',
+																																				_0: 'protected',
+																																				_1: {ctor: '[]'}
+																																			}
+																																		}
+																																	}
+																																}
+																															}
+																														}
+																													}
+																												}
+																											}
+																										}
+																									}
+																								}
+																							}
+																						}
+																					}
+																				}
+																			}
+																		}
+																	}
+																}
+															}
+														}
+													}
+												}
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isKeyword = function (str) {
+	return A2(_elm_lang$core$Set$member, str, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$keywordSet);
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isIdentifierNameChar = function (c) {
+	return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isPunctuaction(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isStringLiteralChar(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isCommentChar(c) || _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c))));
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$LineBreak = {ctor: 'LineBreak'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$lineBreak = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$LineBreak),
+	A2(
+		_elm_tools$parser$Parser$keep,
+		_elm_tools$parser$Parser$Exactly(1),
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$lineBreakList = A2(_elm_tools$parser$Parser$repeat, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$lineBreak);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Param = {ctor: 'Param'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$LiteralKeyword = {ctor: 'LiteralKeyword'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$number = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$LiteralKeyword),
+	_elm_tools$parser$Parser$source(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$number));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$jsEscapable = A2(
+	_elm_tools$parser$Parser$repeat,
+	_elm_tools$parser$Parser$oneOrMore,
+	A2(
+		_elm_tools$parser$Parser$map,
+		F2(
+			function (v0, v1) {
+				return {ctor: '_Tuple2', _0: v0, _1: v1};
+			})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$LiteralKeyword),
+		_elm_tools$parser$Parser$source(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$escapable)));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Function = {ctor: 'Function'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$FunctionEval = {ctor: 'FunctionEval'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$DeclarationKeyword = {ctor: 'DeclarationKeyword'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Keyword = {ctor: 'Keyword'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$operatorChar = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Keyword),
+	A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isOperatorChar));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$String = {ctor: 'String'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$quoteDelimiter = {
+	start: '\'',
+	end: '\'',
+	isNestable: false,
+	defaultMap: F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$String),
+	innerParsers: {
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$lineBreakList,
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$jsEscapable,
+			_1: {ctor: '[]'}
+		}
+	},
+	isNotRelevant: function (c) {
+		return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c) || _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isEscapable(c));
+	}
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$quote = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$quoteDelimiter);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$doubleQuote = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	_elm_lang$core$Native_Utils.update(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$quoteDelimiter,
+		{start: '\"', end: '\"'}));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$templateString = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	_elm_lang$core$Native_Utils.update(
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$quoteDelimiter,
+		{
+			start: '`',
+			end: '`',
+			innerParsers: {
+				ctor: '::',
+				_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$lineBreakList,
+				_1: {
+					ctor: '::',
+					_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$jsEscapable,
+					_1: {ctor: '[]'}
+				}
+			},
+			isNotRelevant: function (c) {
+				return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c) || _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isEscapable(c));
+			}
+		}));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$stringLiteral = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$quote,
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$doubleQuote,
+			_1: {
+				ctor: '::',
+				_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$templateString,
+				_1: {ctor: '[]'}
+			}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Comment = {ctor: 'Comment'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$inlineComment = A2(
+	_elm_tools$parser$Parser$map,
+	function (_p4) {
+		return _elm_lang$core$List$singleton(
+			A2(
+				F2(
+					function (v0, v1) {
+						return {ctor: '_Tuple2', _0: v0, _1: v1};
+					}),
+				_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Comment,
+				_p4));
+	},
+	_elm_tools$parser$Parser$source(
+		A2(
+			_elm_tools$parser$Parser_ops['|.'],
+			_elm_tools$parser$Parser$symbol('//'),
+			A2(
+				_elm_tools$parser$Parser$ignore,
+				_elm_tools$parser$Parser$zeroOrMore,
+				function (_p5) {
+					return !_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(_p5);
+				}))));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$multilineComment = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$delimited(
+	{
+		start: '/*',
+		end: '*/',
+		isNestable: false,
+		defaultMap: F2(
+			function (v0, v1) {
+				return {ctor: '_Tuple2', _0: v0, _1: v1};
+			})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Comment),
+		innerParsers: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$lineBreakList,
+			_1: {ctor: '[]'}
+		},
+		isNotRelevant: function (c) {
+			return !_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isLineBreak(c);
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$comment = _elm_tools$parser$Parser$oneOf(
+	{
+		ctor: '::',
+		_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$inlineComment,
+		_1: {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$multilineComment,
+			_1: {ctor: '[]'}
+		}
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal = {ctor: 'Normal'};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$groupChar = A2(
+	_elm_tools$parser$Parser$map,
+	F2(
+		function (v0, v1) {
+			return {ctor: '_Tuple2', _0: v0, _1: v1};
+		})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal),
+	A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isGroupChar));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$whitespaceOrComment = F2(
+	function (continueFunction, revSyntaxes) {
+		return _elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A3(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+					continueFunction,
+					revSyntaxes,
+					_elm_tools$parser$Parser$oneOf(
+						{
+							ctor: '::',
+							_0: A2(
+								_elm_tools$parser$Parser$map,
+								F2(
+									function (v0, v1) {
+										return {ctor: '_Tuple2', _0: v0, _1: v1};
+									})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal),
+								A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isSpace)),
+							_1: {
+								ctor: '::',
+								_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$lineBreak,
+								_1: {ctor: '[]'}
+							}
+						})),
+				_1: {
+					ctor: '::',
+					_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen, continueFunction, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$comment),
+					_1: {ctor: '[]'}
+				}
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionEvalLoop = F3(
+	function (identifier, preSyntaxList, postSyntaxList) {
+		return _elm_tools$parser$Parser$oneOf(
+			{
+				ctor: '::',
+				_0: A2(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$whitespaceOrComment,
+					A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionEvalLoop, identifier, preSyntaxList),
+					postSyntaxList),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser$andThen,
+						function (n) {
+							return _elm_tools$parser$Parser$succeed(
+								A2(
+									_elm_lang$core$Basics_ops['++'],
+									{
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal, _1: '('},
+										_1: postSyntaxList
+									},
+									{
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$FunctionEval, _1: identifier},
+										_1: preSyntaxList
+									}));
+						},
+						_elm_tools$parser$Parser$symbol('(')),
+					_1: {
+						ctor: '::',
+						_0: _elm_tools$parser$Parser$succeed(
+							A2(
+								_elm_lang$core$Basics_ops['++'],
+								postSyntaxList,
+								{
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal, _1: identifier},
+									_1: preSyntaxList
+								})),
+						_1: {ctor: '[]'}
+					}
+				}
+			});
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$classStatementLoop = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$classStatementLoop, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A3(
+					_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+					_elm_tools$parser$Parser$succeed,
+					revSyntaxes,
+					A2(
+						_elm_tools$parser$Parser$map,
+						F2(
+							function (v0, v1) {
+								return {ctor: '_Tuple2', _0: v0, _1: v1};
+							})(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Function),
+						A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isIdentifierNameChar))),
+				_1: {
+					ctor: '::',
+					_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+					_1: {ctor: '[]'}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$argLoop = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$argLoop, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$andThen,
+					function (n) {
+						return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$argLoop(
+							{
+								ctor: '::',
+								_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Param, _1: n},
+								_1: revSyntaxes
+							});
+					},
+					A2(
+						_elm_tools$parser$Parser$keep,
+						_elm_tools$parser$Parser$oneOrMore,
+						function (c) {
+							return !(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isCommentChar(c) || (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$isWhitespace(c) || (_elm_lang$core$Native_Utils.eq(
+								c,
+								_elm_lang$core$Native_Utils.chr(',')) || _elm_lang$core$Native_Utils.eq(
+								c,
+								_elm_lang$core$Native_Utils.chr(')')))));
+						})),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser$andThen,
+						function (n) {
+							return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$argLoop(
+								{
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal, _1: n},
+									_1: revSyntaxes
+								});
+						},
+						A2(
+							_elm_tools$parser$Parser$keep,
+							_elm_tools$parser$Parser$oneOrMore,
+							function (c) {
+								return _elm_lang$core$Native_Utils.eq(
+									c,
+									_elm_lang$core$Native_Utils.chr('/')) || _elm_lang$core$Native_Utils.eq(
+									c,
+									_elm_lang$core$Native_Utils.chr(','));
+							})),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser$andThen,
+							function (_p6) {
+								return _elm_tools$parser$Parser$succeed(
+									{
+										ctor: '::',
+										_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal, _1: ')'},
+										_1: revSyntaxes
+									});
+							},
+							_elm_tools$parser$Parser$symbol(')')),
+						_1: {
+							ctor: '::',
+							_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+							_1: {ctor: '[]'}
+						}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionStatementLoop = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$whitespaceOrComment, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionStatementLoop, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_tools$parser$Parser$andThen,
+					function (n) {
+						return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionStatementLoop(
+							{
+								ctor: '::',
+								_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Function, _1: n},
+								_1: revSyntaxes
+							});
+					},
+					A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isIdentifierNameChar)),
+				_1: {
+					ctor: '::',
+					_0: A2(
+						_elm_tools$parser$Parser$andThen,
+						function (n) {
+							return _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$argLoop(
+								{
+									ctor: '::',
+									_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Normal, _1: '('},
+									_1: revSyntaxes
+								});
+						},
+						_elm_tools$parser$Parser$symbol('(')),
+					_1: {
+						ctor: '::',
+						_0: _elm_tools$parser$Parser$succeed(revSyntaxes),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$keywordParser = F2(
+	function (revSyntaxes, n) {
+		return (_elm_lang$core$Native_Utils.eq(n, 'function') || _elm_lang$core$Native_Utils.eq(n, 'static')) ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionStatementLoop(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$DeclarationKeyword, _1: n},
+				_1: revSyntaxes
+			}) : (_elm_lang$core$Native_Utils.eq(n, 'class') ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$classStatementLoop(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$DeclarationKeyword, _1: n},
+				_1: revSyntaxes
+			}) : ((_elm_lang$core$Native_Utils.eq(n, 'this') || _elm_lang$core$Native_Utils.eq(n, 'super')) ? _elm_tools$parser$Parser$succeed(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Param, _1: n},
+				_1: revSyntaxes
+			}) : (_elm_lang$core$Native_Utils.eq(n, 'constructor') ? _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionStatementLoop(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Function, _1: n},
+				_1: revSyntaxes
+			}) : (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isKeyword(n) ? _elm_tools$parser$Parser$succeed(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$Keyword, _1: n},
+				_1: revSyntaxes
+			}) : (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isDeclarationKeyword(n) ? _elm_tools$parser$Parser$succeed(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$DeclarationKeyword, _1: n},
+				_1: revSyntaxes
+			}) : (_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isLiteralKeyword(n) ? _elm_tools$parser$Parser$succeed(
+			{
+				ctor: '::',
+				_0: {ctor: '_Tuple2', _0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$LiteralKeyword, _1: n},
+				_1: revSyntaxes
+			}) : A3(
+			_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$functionEvalLoop,
+			n,
+			revSyntaxes,
+			{ctor: '[]'})))))));
+	});
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$mainLoop = function (revSyntaxes) {
+	return _elm_tools$parser$Parser$oneOf(
+		{
+			ctor: '::',
+			_0: A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$whitespaceOrComment, _elm_tools$parser$Parser$succeed, revSyntaxes),
+			_1: {
+				ctor: '::',
+				_0: A3(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$addThen, _elm_tools$parser$Parser$succeed, revSyntaxes, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$stringLiteral),
+				_1: {
+					ctor: '::',
+					_0: A3(
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Helpers$consThen,
+						_elm_tools$parser$Parser$succeed,
+						revSyntaxes,
+						_elm_tools$parser$Parser$oneOf(
+							{
+								ctor: '::',
+								_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$operatorChar,
+								_1: {
+									ctor: '::',
+									_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$groupChar,
+									_1: {
+										ctor: '::',
+										_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$number,
+										_1: {ctor: '[]'}
+									}
+								}
+							})),
+					_1: {
+						ctor: '::',
+						_0: A2(
+							_elm_tools$parser$Parser$andThen,
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$keywordParser(revSyntaxes),
+							A2(_elm_tools$parser$Parser$keep, _elm_tools$parser$Parser$oneOrMore, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$isIdentifierNameChar)),
+						_1: {ctor: '[]'}
+					}
+				}
+			}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$toSyntax = _elm_tools$parser$Parser$run(
+	A2(
+		_elm_tools$parser$Parser$map,
+		function (_p7) {
+			return _elm_lang$core$List$concat(
+				_elm_lang$core$List$reverse(_p7));
+		},
+		A2(
+			_elm_tools$parser$Parser$repeat,
+			_elm_tools$parser$Parser$zeroOrMore,
+			_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$mainLoop(
+				{ctor: '[]'}))));
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$parse = function (_p8) {
+	return A2(
+		_elm_lang$core$Result$map,
+		A2(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line_Helpers$toLines, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$LineBreak, _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$toFragment),
+		_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$toSyntax(_p8));
+};
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Theme$github = '\n.elmsh {\n    background: white;\n    color: #24292e;\n}\n\n.elmsh-hl {\n    background: #fffbdd;\n}\n\n.elmsh-add {\n    background: #eaffea;\n}\n\n.elmsh-del {\n    background: #ffecec;\n}\n\n.elmsh-strong {\n    font-weight: bold;\n}\n\n.elmsh-emphasis {\n    font-style: italic;\n}\n\n.elmsh1 {\n    color: #969896;\n}\n.elmsh2 {\n    color: #df5000;\n}\n\n.elmsh3 {\n    color: #d73a49;\n}\n\n.elmsh4 {\n    color: #0086b3;\n}\n\n.elmsh5 {\n    color: #63a35c;\n}\n\n.elmsh6 {\n    color: #005cc5;\n}\n\n.elmsh7 {\n    color: #795da3;\n}';
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Theme$monokai = '\n.elmsh {\n    background: #23241f;\n    color: #f8f8f2;\n}\n\n.elmsh-hl {\n    background: #0e0f0d;\n}\n\n.elmsh-add {\n    background: #003800;\n}\n\n.elmsh-del {\n    background: #380000;\n}\n\n.elmsh-strong {\n    font-weight: bold;\n}\n\n.elmsh-emphasis {\n    font-style: italic;\n}\n\n.elmsh1 {\n    color: #75715e;\n}\n.elmsh2 {\n    color: #e6db74;\n}\n\n.elmsh3 {\n    color: #f92672;\n}\n\n.elmsh4 {\n    color: #66d9ef;\n}\n\n.elmsh5 {\n    color: #a6e22e;\n}\n\n.elmsh6 {\n    color: #ae81ff;\n}\n\n.elmsh7 {\n    color: #fd971f;\n}';
+
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$useTheme = function (_p0) {
+	var _p1 = _p0;
+	return A3(
+		_elm_lang$html$Html$node,
+		'style',
+		{ctor: '[]'},
+		{
+			ctor: '::',
+			_0: _elm_lang$html$Html$text(_p1._0),
+			_1: {ctor: '[]'}
+		});
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$javascript = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Javascript$parse;
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$xml = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Xml$parse;
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$elm = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Language_Elm$parse;
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$toInlineHtml = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$toInlineHtml;
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$toBlockHtml = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight_View$toBlockHtml;
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$Theme = function (a) {
+	return {ctor: 'Theme', _0: a};
+};
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$monokai = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$Theme(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Theme$monokai);
+var _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$github = _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$Theme(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Theme$github);
+
+var _user$project$Codepress$findCodeString = F2(
+	function (pane, state) {
+		var maybeCode = A2(
 			_elm_community$list_extra$List_Extra$find,
-			function (_p1) {
-				var _p2 = _p1;
-				return _elm_lang$core$Native_Utils.eq(_p2._0, pane);
+			function (_p0) {
+				var _p1 = _p0;
+				return _elm_lang$core$Native_Utils.eq(_p1._0, pane);
 			},
 			state.code);
+		var _p2 = maybeCode;
+		if (_p2.ctor === 'Just') {
+			return _p2._0._1;
+		} else {
+			return '';
+		}
 	});
 var _user$project$Codepress$findHighlight = F2(
 	function (pane, state) {
@@ -10419,30 +14354,83 @@ var _user$project$Codepress$findHighlight = F2(
 			},
 			state.highlights);
 	});
-var _user$project$Codepress$inHighlight = F3(
-	function (pane, state, index) {
-		var _p5 = function () {
-			var _p6 = A2(_user$project$Codepress$findHighlight, pane, state);
-			if ((_p6.ctor === 'Just') && (_p6._0.ctor === '_Tuple2')) {
-				return _p6._0._1;
+var _user$project$Codepress$findRegion = F2(
+	function (pane, state) {
+		var _p5 = A2(_user$project$Codepress$findHighlight, pane, state);
+		if ((_p5.ctor === 'Just') && (_p5._0.ctor === '_Tuple2')) {
+			return _p5._0._1;
+		} else {
+			return {ctor: '_Tuple2', _0: -1, _1: -1};
+		}
+	});
+var _user$project$Codepress$viewPane = F2(
+	function (pane, state) {
+		var _p6 = function () {
+			var _p7 = state;
+			if (_p7.ctor === 'Just') {
+				var _p8 = _p7._0;
+				var region = A2(_user$project$Codepress$findRegion, pane, _p8);
+				var str = A2(_user$project$Codepress$findCodeString, pane, _p8);
+				return {ctor: '_Tuple2', _0: str, _1: region};
 			} else {
-				return {ctor: '_Tuple2', _0: -1, _1: -1};
+				return {
+					ctor: '_Tuple2',
+					_0: '',
+					_1: {ctor: '_Tuple2', _0: -1, _1: -1}
+				};
 			}
 		}();
-		var start = _p5._0;
-		var end = _p5._1;
-		return (_elm_lang$core$Native_Utils.cmp(index, start) > -1) && (_elm_lang$core$Native_Utils.cmp(index, end) < 1);
+		var str = _p6._0;
+		var start = _p6._1._0;
+		var end = _p6._1._1;
+		return {
+			ctor: '::',
+			_0: _pablohirafuji$elm_syntax_highlight$SyntaxHighlight$useTheme(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight$monokai),
+			_1: {
+				ctor: '::',
+				_0: A2(
+					_elm_lang$core$Result$withDefault,
+					A2(
+						_elm_lang$html$Html$pre,
+						{ctor: '[]'},
+						{
+							ctor: '::',
+							_0: A2(
+								_elm_lang$html$Html$code,
+								{ctor: '[]'},
+								{
+									ctor: '::',
+									_0: _elm_lang$html$Html$text(str),
+									_1: {ctor: '[]'}
+								}),
+							_1: {ctor: '[]'}
+						}),
+					A2(
+						_elm_lang$core$Result$map,
+						_pablohirafuji$elm_syntax_highlight$SyntaxHighlight$toBlockHtml(
+							_elm_lang$core$Maybe$Just(1)),
+						A2(
+							_elm_lang$core$Result$map,
+							A3(
+								_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$highlightLines,
+								_elm_lang$core$Maybe$Just(_pablohirafuji$elm_syntax_highlight$SyntaxHighlight_Line$Normal),
+								start - 1,
+								end),
+							_pablohirafuji$elm_syntax_highlight$SyntaxHighlight$elm(str)))),
+				_1: {ctor: '[]'}
+			}
+		};
 	});
 var _user$project$Codepress$getStateAt = F2(
 	function (states, position) {
 		return A2(_elm_community$list_extra$List_Extra$getAt, position, states);
 	});
-var _user$project$Codepress$viewNote = function (_p7) {
-	var _p8 = _p7;
-	var _p9 = A2(_user$project$Codepress$getStateAt, _p8.states, _p8.position);
-	if (_p9.ctor === 'Just') {
-		var _p10 = _p9._0.note;
-		return _elm_lang$core$Native_Utils.eq(_p10, '') ? A2(
+var _user$project$Codepress$viewNote = function (_p9) {
+	var _p10 = _p9;
+	var _p11 = A2(_user$project$Codepress$getStateAt, _p10.states, _p10.position);
+	if (_p11.ctor === 'Just') {
+		var _p12 = _p11._0.note;
+		return _elm_lang$core$Native_Utils.eq(_p12, '') ? A2(
 			_elm_lang$html$Html$div,
 			{ctor: '[]'},
 			{ctor: '[]'}) : A2(
@@ -10461,7 +14449,7 @@ var _user$project$Codepress$viewNote = function (_p7) {
 						_0: _elm_lang$html$Html_Attributes$class('markdown-body'),
 						_1: {ctor: '[]'}
 					},
-					_p10),
+					_p12),
 				_1: {ctor: '[]'}
 			});
 	} else {
@@ -10478,62 +14466,6 @@ var _user$project$Codepress$activeStyle = function (active) {
 		_1: {ctor: '[]'}
 	} : {ctor: '[]'};
 };
-var _user$project$Codepress$lineOfCode = F4(
-	function (pane, state, index, str) {
-		var active = function () {
-			var _p11 = state;
-			if (_p11.ctor === 'Just') {
-				return A3(_user$project$Codepress$inHighlight, pane, _p11._0, index);
-			} else {
-				return false;
-			}
-		}();
-		return A2(
-			_elm_lang$html$Html$pre,
-			{
-				ctor: '::',
-				_0: _elm_lang$html$Html_Attributes$style(
-					_user$project$Codepress$activeStyle(active)),
-				_1: {ctor: '[]'}
-			},
-			{
-				ctor: '::',
-				_0: A2(
-					_elm_lang$html$Html$code,
-					{ctor: '[]'},
-					{
-						ctor: '::',
-						_0: _user$project$Codepress$toText(index),
-						_1: {
-							ctor: '::',
-							_0: _elm_lang$html$Html$text(
-								A2(_elm_lang$core$Basics_ops['++'], ' ', str)),
-							_1: {ctor: '[]'}
-						}
-					}),
-				_1: {ctor: '[]'}
-			});
-	});
-var _user$project$Codepress$viewPane = F2(
-	function (pane, state) {
-		var code = function () {
-			var _p12 = state;
-			if (_p12.ctor === 'Just') {
-				var _p13 = A2(_user$project$Codepress$findCode, pane, _p12._0);
-				if (_p13.ctor === 'Just') {
-					return _p13._0._1;
-				} else {
-					return '';
-				}
-			} else {
-				return '';
-			}
-		}();
-		return _elm_lang$core$Native_Utils.eq(code, '') ? {ctor: '[]'} : A2(
-			_elm_lang$core$List$indexedMap,
-			A2(_user$project$Codepress$lineOfCode, pane, state),
-			_elm_lang$core$String$lines(code));
-	});
 var _user$project$Codepress$State = F3(
 	function (a, b, c) {
 		return {highlights: a, code: b, note: c};

@@ -1,24 +1,35 @@
 module Codepress exposing (State, Options, toHtml, Pane(..))
 
+{-| TODO: Add documentation
+-}
+
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Markdown
 import List.Extra as EList
+import SyntaxHighlight as SH
+import SyntaxHighlight.Line as SH exposing (Highlight(..))
 
 
 -- PUBLIC API
 
 
+{-| TODO: Add documentation
+-}
 toHtml : Options -> Html msg
 toHtml =
     view
 
 
+{-| TODO: Add documentation
+-}
 type Pane
     = Left
     | Right
 
 
+{-| TODO: Add documentation
+-}
 type alias State =
     { highlights : List Highlight
     , code : List Code
@@ -26,6 +37,8 @@ type alias State =
     }
 
 
+{-| TODO: Add documentation
+-}
 type alias Options =
     { states : List State
     , position : Int
@@ -64,69 +77,55 @@ findHighlight pane state =
         state.highlights
 
 
-findCode : Pane -> State -> Maybe Code
-findCode pane state =
-    EList.find
-        (\( p, _ ) -> p == pane)
-        state.code
-
-
-toText : a -> Html msg
-toText =
-    text << toString
-
-
-inHighlight : Pane -> State -> Int -> Bool
-inHighlight pane state index =
+findCodeString : Pane -> State -> String
+findCodeString pane state =
     let
-        ( start, end ) =
-            case findHighlight pane state of
-                Just ( _, positions ) ->
-                    positions
-
-                _ ->
-                    ( -1, -1 )
+        maybeCode =
+            EList.find (\( p, _ ) -> p == pane) state.code
     in
-        index >= start && index <= end
+        case maybeCode of
+            Just ( _, code ) ->
+                code
+
+            Nothing ->
+                ""
 
 
-lineOfCode : Pane -> Maybe State -> Int -> String -> Html msg
-lineOfCode pane state index str =
-    let
-        active =
-            case state of
-                Just state ->
-                    inHighlight pane state index
+findRegion : Pane -> State -> ( Int, Int )
+findRegion pane state =
+    case findHighlight pane state of
+        Just ( _, positions ) ->
+            positions
 
-                _ ->
-                    False
-    in
-        pre
-            [ style (activeStyle active) ]
-            [ code [] [ toText index, text (" " ++ str) ]
-            ]
+        _ ->
+            ( -1, -1 )
 
 
 viewPane : Pane -> Maybe State -> List (Html msg)
 viewPane pane state =
     let
-        code =
+        ( str, ( start, end ) ) =
             case state of
                 Just state ->
-                    case findCode pane state of
-                        Just ( _, code ) ->
-                            code
+                    let
+                        str =
+                            findCodeString pane state
 
-                        Nothing ->
-                            ""
+                        region =
+                            findRegion pane state
+                    in
+                        ( str, region )
 
                 Nothing ->
-                    ""
+                    ( "", ( -1, -1 ) )
     in
-        if code == "" then
-            []
-        else
-            code |> String.lines |> List.indexedMap (lineOfCode pane state)
+        [ SH.useTheme SH.monokai
+        , SH.elm str
+            |> Result.map (SH.highlightLines (Just Normal) (start - 1) end)
+            |> Result.map (SH.toBlockHtml (Just 1))
+            |> Result.withDefault
+                (pre [] [ code [] [ text str ] ])
+        ]
 
 
 view : Options -> Html msg
