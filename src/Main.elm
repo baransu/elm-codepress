@@ -1,17 +1,16 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Html exposing (Html, text, button, div)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (class)
-import Keyboard exposing (KeyCode)
 import Codepress exposing (State, Options, Pane(Left, Right), Scroll)
 import List.Extra as EList
-import Compiler
 
 
 type Msg
     = PrevState
     | NextState
+    | Compiled Int String
     | OnScroll Pane Scroll
     | OnInput String
 
@@ -46,53 +45,57 @@ defaultScroll =
     Scroll 0 0
 
 
+
+-- TODO: add batch compile
+
+
 states : List State
 states =
     [ State
         [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         "Fancy module transpilation"
 
     --
     , State
         [ Left >> ( 3, 3 ), Right >> ( 4, 4 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         "As you can see, there is awesome `Elchemy` -> `Elixir` type transpilation"
 
     --
     , State
         [ Left >> ( 4, 4 ), Right >> ( 5, 6 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         "Every outputed function is curried thanks to curry macro"
 
     --
     , State
         [ Left >> ( 5, 12 ), Right >> ( 7, 20 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 15, 15 ), Right >> ( 7, 20 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 16, 16 ), Left >> ( 23, 26 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         """### Do you know that:
 * I'm markdown note
@@ -112,14 +115,14 @@ add =
     --
     , State
         [ Left >> ( 3, 12 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         "And you can create single pane highlights"
 
     --
     , State
         [ Left >> ( 3, 12 ) ]
-        ( left, Compiler.tree left )
+        ( left, "" )
         defaultScroll
         "left"
     ]
@@ -131,7 +134,15 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( Model 0 states, Cmd.none )
+    let
+        batchData =
+            List.indexedMap
+                (\position { code } ->
+                    { position = position, input = Tuple.first code }
+                )
+                states
+    in
+        ( Model 0 states, batchCompile batchData )
 
 
 options : Model -> Options Msg
@@ -152,18 +163,29 @@ viewNavigation =
         ]
 
 
-updateStateScroll : Model -> Pane -> Scroll -> List State
-updateStateScroll { position, states } pane scroll =
+updateScroll : Model -> Pane -> Scroll -> List State
+updateScroll { position, states } pane scroll =
     states
         |> EList.updateAt position (\a -> { a | scroll = scroll })
         |> Maybe.withDefault []
 
 
-updateStateContent : Model -> String -> List State
-updateStateContent { position, states } str =
+updateCodeLeft : Model -> String -> List State
+updateCodeLeft { position, states } str =
     let
         updateState state =
-            { state | code = ( str, Compiler.tree str ) }
+            { state | code = ( str, Tuple.second state.code ) }
+    in
+        states
+            |> EList.updateAt position updateState
+            |> Maybe.withDefault []
+
+
+updateCodeRight : Model -> Int -> String -> List State
+updateCodeRight { states } position str =
+    let
+        updateState state =
+            { state | code = ( Tuple.first state.code, str ) }
     in
         states
             |> EList.updateAt position updateState
@@ -176,14 +198,21 @@ update msg model =
         OnScroll pane scroll ->
             let
                 states =
-                    updateStateScroll model pane scroll
+                    updateScroll model pane scroll
             in
                 ( { model | states = states }, Cmd.none )
 
         OnInput str ->
             let
                 states =
-                    updateStateContent model str
+                    updateCodeLeft model str
+            in
+                ( { model | states = states }, compile { position = model.position, input = str } )
+
+        Compiled position output ->
+            let
+                states =
+                    updateCodeRight model position output
             in
                 ( { model | states = states }, Cmd.none )
 
@@ -208,10 +237,25 @@ update msg model =
                 ( { model | position = position }, Cmd.none )
 
 
+type alias CompileData =
+    { position : Int
+    , input : String
+    }
+
+
+port compile : CompileData -> Cmd msg
+
+
+port batchCompile : List CompileData -> Cmd msg
+
+
+port compiled : ({ position : Int, output : String } -> msg) -> Sub msg
+
+
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [-- Keyboard.downs KeyDown
+        [ compiled (\{ position, output } -> Compiled position output)
         ]
 
 
