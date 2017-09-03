@@ -5,59 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="theme-color" content="#000000">
     <title>elm-codepress</title>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/styles/atom-one-dark.min.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/2.8.0/github-markdown.css" />
+    <link rel="stylesheet" href="style.css" />
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/highlight.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/languages/elm.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.11.0/languages/elixir.min.js"></script>
     <script src="elm.js"></script>
-    <style>
-    body, html, #root {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    .presentation {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-    }
-    .pane {
-      overflow-y: auto;
-      overflow-x: hidden;
-      border: 1px solid #23241f;
-      background-color: #23241f;
-      box-sizing: border-box;
-      width: 50%;
-      height: 100%;
-      display: inline-block;
-    }
-    pre {
-      color: #686972;
-      margin: 0;
-      padding: 0;
-    }
-    .note {
-      position: absolute;
-      background-color: #fff;
-      padding: 5px 10px;
-      font-size: 20px;
-      bottom: 30px;
-      left: 50%;
-      transform: translate(-50%, 0%);
-    }
-    </style>
   </head>
   <body>
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>
+    <div id="error-dialog"></div>
     <div id="root"></div>
     <script>
     var app = Elm.Main.embed(document.getElementById('root'));
+window.onerror = (errorMsg, url, lineNumber) => {
+  setTimeout(() => {
+    const split = errorMsg.split('The message provided by the code author is:');
+    if (split.length == 2) {
+      document.getElementById('error-dialog').innerText = split[1];
+    }
+  }, 30);
+  return false;
+};
+window.onkeydown = () => {
+  document.getElementById('error-dialog').innerText = '';
+};
 </script>
   </body>
 </html>
