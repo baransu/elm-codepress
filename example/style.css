@@ -62,9 +62,8 @@ pre {
   z-index: 1;
 }
 .textarea {
-  caret-color: #f8f8f2;
+  caret-color: #528bff;
   color: rgba(0, 0, 0, 0);
-  /*color: white;*/
   resize: none;
   z-index: 2;
   position: relative;
