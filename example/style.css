@@ -32,8 +32,7 @@ pre {
 .pane {
   overflow-y: auto;
   overflow-x: hidden;
-  border: 1px solid #23241f;
-  background-color: #23241f;
+  background-color: #282c34;
   box-sizing: border-box;
   width: 50%;
   height: 100%;

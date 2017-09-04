@@ -135,7 +135,7 @@ viewPane options pane state =
                 , ( "will-change", "transform" )
                 ]
             ]
-            [ SH.useTheme SH.monokai
+            [ SH.useTheme SH.oneDark
             , if String.length str == 0 then
                 pre [] [ code [] [] ]
               else
