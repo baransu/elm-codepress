@@ -10,4 +10,4 @@ worker:
 	elm-make src/Worker.elm --output=example/worker.js
 
 build: worker
-	elm-make src/Main.elm --output=example/elm.js
+	elm-make src/Main.elm --output=example/elm.js --debug

@@ -7,6 +7,7 @@ html,
   margin: 0;
   padding: 0;
 }
+
 .presentation {
   position: absolute;
   top: 40px;
@@ -14,11 +15,13 @@ html,
   width: 100vw;
   height: calc(100vh - 40px);
 }
+
 pre {
   color: #686972;
   margin: 0;
   padding: 0;
 }
+
 .note {
   z-index: 10;
   position: absolute;
@@ -29,6 +32,7 @@ pre {
   left: 50%;
   transform: translate(-50%, 0%);
 }
+
 .pane {
   overflow-y: auto;
   overflow-x: hidden;
@@ -38,6 +42,7 @@ pre {
   height: 100%;
   display: inline-block;
 }
+
 .textarea,
 .view-container {
   box-sizing: border-box;
@@ -54,6 +59,7 @@ pre {
   background: transparent;
   white-space: pre;
 }
+
 .view-container {
   position: absolute;
   top: 0;
@@ -61,6 +67,7 @@ pre {
   pointer-events: none;
   z-index: 1;
 }
+
 .textarea {
   caret-color: #528bff;
   color: rgba(0, 0, 0, 0);
@@ -68,12 +75,15 @@ pre {
   z-index: 2;
   position: relative;
 }
+
 .textarea-lc {
   padding-left: 60px;
 }
+
 .textarea:focus {
   outline: none;
 }
+
 .textarea::selection {
   background-color: rgba(255, 255, 255, 0.2);
 }
@@ -112,9 +122,11 @@ pre.elmsh {
   text-align: left;
   overflow: auto;
 }
+
 code.elmsh {
   padding: 0;
 }
+
 .elmsh-line:before {
   content: attr(data-elmsh-lc);
   display: inline-block;
@@ -122,4 +134,8 @@ code.elmsh {
   width: 40px;
   padding: 0 20px 0 0;
   opacity: 0.3;
+}
+
+#worker {
+  visibility: hidden;
 }

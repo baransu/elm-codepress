@@ -3,6 +3,7 @@ port module Worker exposing (main)
 import Platform
 import Compiler
 import Json.Decode
+import Native.Hacks
 
 
 type Msg
@@ -22,7 +23,16 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Compile position source ->
-            ( source, compiled { position = position, output = Compiler.tree source } )
+            let
+                command =
+                    case Native.Hacks.tryCatch Compiler.tree source of
+                        Ok output ->
+                            compiled { position = position, output = output }
+
+                        Err err ->
+                            compiled { position = position, output = err }
+            in
+                ( source, command )
 
 
 subscriptions : Model -> Sub Msg
