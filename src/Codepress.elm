@@ -33,7 +33,7 @@ type Pane
 -}
 type alias State =
     { highlights : List Highlight
-    , code : ( String, String )
+    , code : ( Result String String, Result String String )
     , scroll : Scroll
     , note : String
     }
@@ -85,7 +85,7 @@ findHighlight pane state =
         state.highlights
 
 
-findCodeString : Pane -> State -> String
+findCodeString : Pane -> State -> Result String String
 findCodeString pane state =
     if pane == Left then
         Tuple.first state.code
@@ -100,26 +100,39 @@ findRegion pane state =
             positions
 
         _ ->
-            ( -1, -1 )
+            ( 0, -1 )
 
 
-viewPane : Options msg -> Pane -> Maybe State -> List (Html msg)
-viewPane options pane state =
+unwrapState : Maybe State -> Pane -> ( Result String String, ( Int, Int ), Scroll )
+unwrapState state pane =
+    case state of
+        Just state ->
+            let
+                str =
+                    findCodeString pane state
+
+                region =
+                    findRegion pane state
+            in
+                ( str, region, state.scroll )
+
+        Nothing ->
+            ( Ok "", ( 0, -1 ), Scroll 0 0 )
+
+
+viewLeft : Options msg -> Maybe State -> List (Html msg)
+viewLeft options state =
     let
-        ( str, ( start, end ), scroll ) =
-            case state of
-                Just state ->
-                    let
-                        str =
-                            findCodeString pane state
+        ( content, ( start, end ), scroll ) =
+            unwrapState state Left
 
-                        region =
-                            findRegion pane state
-                    in
-                        ( str, region, state.scroll )
+        str =
+            case content of
+                Ok str ->
+                    str
 
-                Nothing ->
-                    ( "", ( -1, -1 ), Scroll 0 0 )
+                Err err ->
+                    err
     in
         [ div
             [ class "view-container"
@@ -144,30 +157,47 @@ viewPane options pane state =
                     |> Result.withDefault
                         (pre [] [ code [] [ text str ] ])
             ]
-        , if pane == Left then
-            viewTextarea
-                [ onScroll <| options.onScroll pane
-                , onInput options.onInput
+        , textarea
+            [ value str
+            , classList
+                [ ( "textarea", True )
+                , ( "textarea-lc", True )
                 ]
-                str
-          else
-            div [] []
+            , spellcheck False
+            , onScroll <| options.onScroll Left
+            , onInput options.onInput
+            ]
+            []
         ]
 
 
-viewTextarea : List (Attribute msg) -> String -> Html msg
-viewTextarea attrs code =
-    textarea
-        ([ value code
-         , classList
-            [ ( "textarea", True )
-            , ( "textarea-lc", True )
-            ]
-         , spellcheck False
-         ]
-            ++ attrs
-        )
-        []
+viewRight : Options msg -> Maybe State -> List (Html msg)
+viewRight options state =
+    let
+        ( content, ( start, end ), _ ) =
+            unwrapState state Right
+    in
+        [ div
+            [ class "view-container" ]
+          <|
+            case content of
+                Ok str ->
+                    [ Markdown.toHtml [] ("```elixir\n" ++ str ++ "\n```")
+                    , div
+                        [ class "elmsh-line elmsh-hl"
+                        , style
+                            [ ( "position", "absolute" )
+                            , ( "top", toString ((start - 1) * 15) ++ "px " )
+                            , ( "width", "100%" )
+                            , ( "height", toString ((end - start + 1) * 15) ++ "px" )
+                            ]
+                        ]
+                        []
+                    ]
+
+                Err err ->
+                    [ Markdown.toHtml [ class "error" ] ("```\n" ++ err ++ "\n```") ]
+        ]
 
 
 view : Options msg -> Html msg
@@ -177,8 +207,8 @@ view options =
             getStateAt options.states options.position
     in
         div [ class "presentation" ]
-            [ div [ class "pane left container" ] <| viewPane options Left state
-            , div [ class "pane right container" ] <| viewPane options Right state
+            [ div [ class "pane left container" ] <| viewLeft options state
+            , div [ class "pane right container" ] <| viewRight options state
             , viewNote options
             ]
 

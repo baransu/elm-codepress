@@ -1,16 +1,17 @@
-port module Main exposing (main)
+module Main exposing (main)
 
 import Html exposing (Html, text, button, div)
 import Html.Events exposing (onClick)
 import Html.Attributes exposing (class)
 import Codepress exposing (State, Options, Pane(Left, Right), Scroll)
 import List.Extra as EList
+import Native.Hacks
+import Compiler
 
 
 type Msg
     = PrevState
     | NextState
-    | Compiled Int String
     | OnScroll Pane Scroll
     | OnInput String
 
@@ -45,57 +46,53 @@ defaultScroll =
     Scroll 0 0
 
 
-
--- TODO: add batch compile
-
-
 states : List State
 states =
     [ State
         [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         "Fancy module transpilation"
 
     --
     , State
         [ Left >> ( 3, 3 ), Right >> ( 4, 4 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         "As you can see, there is awesome `Elchemy` -> `Elixir` type transpilation"
 
     --
     , State
         [ Left >> ( 4, 4 ), Right >> ( 5, 6 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         "Every outputed function is curried thanks to curry macro"
 
     --
     , State
         [ Left >> ( 5, 12 ), Right >> ( 7, 20 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 15, 15 ), Right >> ( 7, 20 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 16, 16 ), Left >> ( 23, 26 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         """### Do you know that:
 * I'm markdown note
@@ -115,14 +112,14 @@ add =
     --
     , State
         [ Left >> ( 3, 12 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         "And you can create single pane highlights"
 
     --
     , State
         [ Left >> ( 3, 12 ) ]
-        ( left, "" )
+        ( Ok left, Ok "" )
         defaultScroll
         "left"
     ]
@@ -134,15 +131,18 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    let
-        batchData =
-            List.indexedMap
-                (\position { code } ->
-                    { position = position, input = Tuple.first code }
-                )
-                states
-    in
-        ( Model 0 states, batchCompile batchData )
+    ( Model 0
+        (List.map
+            (\state ->
+                { state
+                    | code =
+                        ( Tuple.first state.code, compileElchemy (Tuple.first state.code) )
+                }
+            )
+            states
+        )
+    , Cmd.none
+    )
 
 
 options : Model -> Options Msg
@@ -163,58 +163,48 @@ viewNavigation =
         ]
 
 
-updateScroll : Model -> Pane -> Scroll -> List State
-updateScroll { position, states } pane scroll =
-    states
-        |> EList.updateAt position (\a -> { a | scroll = scroll })
-        |> Maybe.withDefault []
-
-
-updateCodeLeft : Model -> String -> List State
-updateCodeLeft { position, states } str =
+updateScroll : Model -> Pane -> Scroll -> Model
+updateScroll model pane scroll =
     let
-        updateState state =
-            { state | code = ( str, Tuple.second state.code ) }
+        { position, states } =
+            model
     in
-        states
-            |> EList.updateAt position updateState
-            |> Maybe.withDefault []
+        { model
+            | states =
+                states
+                    |> EList.updateAt position (\a -> { a | scroll = scroll })
+                    |> Maybe.withDefault []
+        }
 
 
-updateCodeRight : Model -> Int -> String -> List State
-updateCodeRight { states } position str =
+updateState : Model -> String -> Model
+updateState model input =
     let
-        updateState state =
-            { state | code = ( Tuple.first state.code, str ) }
+        { states, position } =
+            model
+
+        update state =
+            { state
+                | highlights = []
+                , code = ( Ok input, compileElchemy (Ok input) )
+            }
     in
-        states
-            |> EList.updateAt position updateState
-            |> Maybe.withDefault []
+        { model
+            | states =
+                states
+                    |> EList.updateAt position update
+                    |> Maybe.withDefault []
+        }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OnScroll pane scroll ->
-            let
-                states =
-                    updateScroll model pane scroll
-            in
-                ( { model | states = states }, Cmd.none )
+            ( updateScroll model pane scroll, Cmd.none )
 
-        OnInput str ->
-            let
-                states =
-                    updateCodeLeft model str
-            in
-                ( { model | states = states }, compile { position = model.position, input = str } )
-
-        Compiled position output ->
-            let
-                states =
-                    updateCodeRight model position output
-            in
-                ( { model | states = states }, Cmd.none )
+        OnInput input ->
+            ( updateState model input, Cmd.none )
 
         PrevState ->
             let
@@ -237,33 +227,21 @@ update msg model =
                 ( { model | position = position }, Cmd.none )
 
 
-type alias CompileData =
-    { position : Int
-    , input : String
-    }
-
-
-port compile : CompileData -> Cmd msg
-
-
-port batchCompile : List CompileData -> Cmd msg
-
-
-port compiled : ({ position : Int, output : String } -> msg) -> Sub msg
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.batch
-        [ compiled (\{ position, output } -> Compiled position output)
-        ]
-
-
 main : Program Never Model Msg
 main =
     Html.program
         { init = init
         , update = update
         , view = view
-        , subscriptions = subscriptions
+        , subscriptions = \_ -> Sub.none
         }
+
+
+compileElchemy : Result String String -> Result String String
+compileElchemy input =
+    case input of
+        Ok i ->
+            Native.Hacks.tryCatch Compiler.tree i
+
+        _ ->
+            input
