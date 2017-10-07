@@ -8,8 +8,7 @@ import Html.Attributes exposing (..)
 import Html.Events as Events exposing (onInput)
 import Markdown
 import List.Extra as EList
-import SyntaxHighlight as SH
-import SyntaxHighlight.Line as SH exposing (Highlight(..))
+import SyntaxHighlight as SH exposing (Highlight(..))
 import Json.Decode as Decode
 
 
@@ -140,7 +139,7 @@ viewPane options pane state =
                 pre [] [ code [] [] ]
               else
                 SH.elm str
-                    |> Result.map (SH.highlightLines (Just Normal) (start - 1) end)
+                    |> Result.map (SH.highlightLines (Just Highlight) (start - 1) end)
                     |> Result.map (SH.toBlockHtml <| Just 1)
                     |> Result.withDefault
                         (pre [] [ code [] [ text str ] ])
