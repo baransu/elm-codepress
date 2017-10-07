@@ -23917,16 +23917,19 @@ var _baransu$elm_codepress$Codepress$Right = {ctor: 'Right'};
 var _baransu$elm_codepress$Codepress$Left = {ctor: 'Left'};
 var _baransu$elm_codepress$Codepress$findCodeString = F2(
 	function (pane, state) {
-		return _elm_lang$core$Native_Utils.eq(pane, _baransu$elm_codepress$Codepress$Left) ? _elm_lang$core$Tuple$first(state.code) : _elm_lang$core$Tuple$second(state.code);
+		var _p7 = state.code;
+		var left = _p7._1;
+		var right = _p7._2;
+		return _elm_lang$core$Native_Utils.eq(pane, _baransu$elm_codepress$Codepress$Left) ? left : right;
 	});
 var _baransu$elm_codepress$Codepress$unwrapState = F2(
 	function (state, pane) {
-		var _p7 = state;
-		if (_p7.ctor === 'Just') {
-			var _p8 = _p7._0;
-			var region = A2(_baransu$elm_codepress$Codepress$findRegion, pane, _p8);
-			var str = A2(_baransu$elm_codepress$Codepress$findCodeString, pane, _p8);
-			return {ctor: '_Tuple3', _0: str, _1: region, _2: _p8.scroll};
+		var _p8 = state;
+		if (_p8.ctor === 'Just') {
+			var _p9 = _p8._0;
+			var region = A2(_baransu$elm_codepress$Codepress$findRegion, pane, _p9);
+			var str = A2(_baransu$elm_codepress$Codepress$findCodeString, pane, _p9);
+			return {ctor: '_Tuple3', _0: str, _1: region, _2: _p9.scroll};
 		} else {
 			return {
 				ctor: '_Tuple3',
@@ -23938,10 +23941,10 @@ var _baransu$elm_codepress$Codepress$unwrapState = F2(
 	});
 var _baransu$elm_codepress$Codepress$viewRight = F2(
 	function (options, state) {
-		var _p9 = A2(_baransu$elm_codepress$Codepress$unwrapState, state, _baransu$elm_codepress$Codepress$Right);
-		var content = _p9._0;
-		var start = _p9._1._0;
-		var end = _p9._1._1;
+		var _p10 = A2(_baransu$elm_codepress$Codepress$unwrapState, state, _baransu$elm_codepress$Codepress$Right);
+		var content = _p10._0;
+		var start = _p10._1._0;
+		var end = _p10._1._1;
 		return {
 			ctor: '::',
 			_0: A2(
@@ -23952,8 +23955,8 @@ var _baransu$elm_codepress$Codepress$viewRight = F2(
 					_1: {ctor: '[]'}
 				},
 				function () {
-					var _p10 = content;
-					if (_p10.ctor === 'Ok') {
+					var _p11 = content;
+					if (_p11.ctor === 'Ok') {
 						return {
 							ctor: '::',
 							_0: A2(
@@ -23962,7 +23965,7 @@ var _baransu$elm_codepress$Codepress$viewRight = F2(
 								A2(
 									_elm_lang$core$Basics_ops['++'],
 									'```elixir\n',
-									A2(_elm_lang$core$Basics_ops['++'], _p10._0, '\n```'))),
+									A2(_elm_lang$core$Basics_ops['++'], _p11._0, '\n```'))),
 							_1: {
 								ctor: '::',
 								_0: A2(
@@ -24024,7 +24027,7 @@ var _baransu$elm_codepress$Codepress$viewRight = F2(
 								A2(
 									_elm_lang$core$Basics_ops['++'],
 									'```\n',
-									A2(_elm_lang$core$Basics_ops['++'], _p10._0, '\n```'))),
+									A2(_elm_lang$core$Basics_ops['++'], _p11._0, '\n```'))),
 							_1: {ctor: '[]'}
 						};
 					}
@@ -24034,17 +24037,17 @@ var _baransu$elm_codepress$Codepress$viewRight = F2(
 	});
 var _baransu$elm_codepress$Codepress$viewLeft = F2(
 	function (options, state) {
-		var _p11 = A2(_baransu$elm_codepress$Codepress$unwrapState, state, _baransu$elm_codepress$Codepress$Left);
-		var content = _p11._0;
-		var start = _p11._1._0;
-		var end = _p11._1._1;
-		var scroll = _p11._2;
+		var _p12 = A2(_baransu$elm_codepress$Codepress$unwrapState, state, _baransu$elm_codepress$Codepress$Left);
+		var content = _p12._0;
+		var start = _p12._1._0;
+		var end = _p12._1._1;
+		var scroll = _p12._2;
 		var str = function () {
-			var _p12 = content;
-			if (_p12.ctor === 'Ok') {
-				return _p12._0;
+			var _p13 = content;
+			if (_p13.ctor === 'Ok') {
+				return _p13._0;
 			} else {
-				return _p12._0;
+				return _p13._0;
 			}
 		}();
 		return {
@@ -29663,24 +29666,50 @@ var _baransu$elm_codepress$Main$compileElchemy = function (input) {
 		return input;
 	}
 };
+var _baransu$elm_codepress$Main$resetState = function (_p1) {
+	var _p2 = _p1;
+	var update = function (state) {
+		var _p3 = state.code;
+		var fst = _p3._0;
+		return _elm_lang$core$Native_Utils.update(
+			state,
+			{
+				highlights: {ctor: '[]'},
+				code: {
+					ctor: '_Tuple3',
+					_0: fst,
+					_1: _elm_lang$core$Result$Ok(fst),
+					_2: _baransu$elm_codepress$Main$compileElchemy(
+						_elm_lang$core$Result$Ok(fst))
+				}
+			});
+	};
+	return A2(
+		_elm_lang$core$Maybe$withDefault,
+		{ctor: '[]'},
+		A3(_elm_community$list_extra$List_Extra$updateAt, _p2.position, update, _p2.states));
+};
 var _baransu$elm_codepress$Main$updateState = F2(
 	function (model, input) {
 		var update = function (state) {
+			var _p4 = state.code;
+			var fst = _p4._0;
 			return _elm_lang$core$Native_Utils.update(
 				state,
 				{
 					highlights: {ctor: '[]'},
 					code: {
-						ctor: '_Tuple2',
-						_0: _elm_lang$core$Result$Ok(input),
-						_1: _baransu$elm_codepress$Main$compileElchemy(
+						ctor: '_Tuple3',
+						_0: fst,
+						_1: _elm_lang$core$Result$Ok(input),
+						_2: _baransu$elm_codepress$Main$compileElchemy(
 							_elm_lang$core$Result$Ok(input))
 					}
 				});
 		};
-		var _p1 = model;
-		var states = _p1.states;
-		var position = _p1.position;
+		var _p5 = model;
+		var states = _p5.states;
+		var position = _p5.position;
 		return _elm_lang$core$Native_Utils.update(
 			model,
 			{
@@ -29692,9 +29721,9 @@ var _baransu$elm_codepress$Main$updateState = F2(
 	});
 var _baransu$elm_codepress$Main$updateScroll = F3(
 	function (model, pane, scroll) {
-		var _p2 = model;
-		var position = _p2.position;
-		var states = _p2.states;
+		var _p6 = model;
+		var position = _p6.position;
+		var states = _p6.states;
 		return _elm_lang$core$Native_Utils.update(
 			model,
 			{
@@ -29712,49 +29741,51 @@ var _baransu$elm_codepress$Main$updateScroll = F3(
 						states))
 			});
 	});
-var _baransu$elm_codepress$Main$update = F2(
-	function (msg, model) {
-		var _p3 = msg;
-		switch (_p3.ctor) {
-			case 'OnScroll':
-				return {
-					ctor: '_Tuple2',
-					_0: A3(_baransu$elm_codepress$Main$updateScroll, model, _p3._0, _p3._1),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'OnInput':
-				return {
-					ctor: '_Tuple2',
-					_0: A2(_baransu$elm_codepress$Main$updateState, model, _p3._0),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			case 'PrevState':
-				var position = (_elm_lang$core$Native_Utils.cmp(model.position, 0) > 0) ? (model.position - 1) : model.position;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{position: position}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-			default:
-				var position = (_elm_lang$core$Native_Utils.cmp(
-					model.position,
-					_elm_lang$core$List$length(model.states) - 1) < 0) ? (model.position + 1) : model.position;
-				return {
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Native_Utils.update(
-						model,
-						{position: position}),
-					_1: _elm_lang$core$Platform_Cmd$none
-				};
-		}
-	});
 var _baransu$elm_codepress$Main$defaultScroll = A2(_baransu$elm_codepress$Codepress$Scroll, 0, 0);
 var _baransu$elm_codepress$Main_ops = _baransu$elm_codepress$Main_ops || {};
 _baransu$elm_codepress$Main_ops['>>'] = F2(
 	function (a, b) {
 		return {ctor: '_Tuple2', _0: a, _1: b};
+	});
+var _baransu$elm_codepress$Main$update = F2(
+	function (msg, model) {
+		var _p7 = msg;
+		switch (_p7.ctor) {
+			case 'OnScroll':
+				return A2(
+					_baransu$elm_codepress$Main_ops['>>'],
+					A3(_baransu$elm_codepress$Main$updateScroll, model, _p7._0, _p7._1),
+					_elm_lang$core$Platform_Cmd$none);
+			case 'OnInput':
+				return A2(
+					_baransu$elm_codepress$Main_ops['>>'],
+					A2(_baransu$elm_codepress$Main$updateState, model, _p7._0),
+					_elm_lang$core$Platform_Cmd$none);
+			case 'PrevState':
+				var position = (_elm_lang$core$Native_Utils.cmp(model.position, 0) > 0) ? (model.position - 1) : model.position;
+				return A2(
+					_baransu$elm_codepress$Main_ops['>>'],
+					_elm_lang$core$Native_Utils.update(
+						model,
+						{
+							states: _baransu$elm_codepress$Main$resetState(model),
+							position: position
+						}),
+					_elm_lang$core$Platform_Cmd$none);
+			default:
+				var position = (_elm_lang$core$Native_Utils.cmp(
+					model.position,
+					_elm_lang$core$List$length(model.states) - 1) < 0) ? (model.position + 1) : model.position;
+				return A2(
+					_baransu$elm_codepress$Main_ops['>>'],
+					_elm_lang$core$Native_Utils.update(
+						model,
+						{
+							states: _baransu$elm_codepress$Main$resetState(model),
+							position: position
+						}),
+					_elm_lang$core$Platform_Cmd$none);
+		}
 	});
 var _baransu$elm_codepress$Main$left = 'module FizzBuzz exposing (fizzbuzz)\n\n\nfizzbuzz : Int -> Int -> String\nfizzbuzz from to =\n  let\n    fizzBuzz n =\n        case (n % 3, n % 5) of\n            (0, 0) -> \"FizzBuzz\"\n            (0, _) -> \"Fizz\"\n            (_, 0) -> \"Buzz\"\n            _      -> toString n\n  in List.range from to |> map (fizzBuzz >> toString) |> joinWords\n\n\njoinWords : List String -> String\njoinWords a = String.join \" \" a';
 var _baransu$elm_codepress$Main$states = {
@@ -29777,9 +29808,10 @@ var _baransu$elm_codepress$Main$states = {
 			}
 		},
 		{
-			ctor: '_Tuple2',
-			_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-			_1: _elm_lang$core$Result$Ok('')
+			ctor: '_Tuple3',
+			_0: _baransu$elm_codepress$Main$left,
+			_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+			_2: _elm_lang$core$Result$Ok('')
 		},
 		_baransu$elm_codepress$Main$defaultScroll,
 		''),
@@ -29803,9 +29835,10 @@ var _baransu$elm_codepress$Main$states = {
 				}
 			},
 			{
-				ctor: '_Tuple2',
-				_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-				_1: _elm_lang$core$Result$Ok('')
+				ctor: '_Tuple3',
+				_0: _baransu$elm_codepress$Main$left,
+				_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+				_2: _elm_lang$core$Result$Ok('')
 			},
 			_baransu$elm_codepress$Main$defaultScroll,
 			'Fancy module transpilation'),
@@ -29829,9 +29862,10 @@ var _baransu$elm_codepress$Main$states = {
 					}
 				},
 				{
-					ctor: '_Tuple2',
-					_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-					_1: _elm_lang$core$Result$Ok('')
+					ctor: '_Tuple3',
+					_0: _baransu$elm_codepress$Main$left,
+					_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+					_2: _elm_lang$core$Result$Ok('')
 				},
 				_baransu$elm_codepress$Main$defaultScroll,
 				'As you can see, there is awesome `Elchemy` -> `Elixir` type transpilation'),
@@ -29855,9 +29889,10 @@ var _baransu$elm_codepress$Main$states = {
 						}
 					},
 					{
-						ctor: '_Tuple2',
-						_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-						_1: _elm_lang$core$Result$Ok('')
+						ctor: '_Tuple3',
+						_0: _baransu$elm_codepress$Main$left,
+						_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+						_2: _elm_lang$core$Result$Ok('')
 					},
 					_baransu$elm_codepress$Main$defaultScroll,
 					'Every outputed function is curried thanks to curry macro'),
@@ -29881,9 +29916,10 @@ var _baransu$elm_codepress$Main$states = {
 							}
 						},
 						{
-							ctor: '_Tuple2',
-							_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-							_1: _elm_lang$core$Result$Ok('')
+							ctor: '_Tuple3',
+							_0: _baransu$elm_codepress$Main$left,
+							_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+							_2: _elm_lang$core$Result$Ok('')
 						},
 						_baransu$elm_codepress$Main$defaultScroll,
 						''),
@@ -29907,9 +29943,10 @@ var _baransu$elm_codepress$Main$states = {
 								}
 							},
 							{
-								ctor: '_Tuple2',
-								_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-								_1: _elm_lang$core$Result$Ok('')
+								ctor: '_Tuple3',
+								_0: _baransu$elm_codepress$Main$left,
+								_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+								_2: _elm_lang$core$Result$Ok('')
 							},
 							_baransu$elm_codepress$Main$defaultScroll,
 							''),
@@ -29933,9 +29970,10 @@ var _baransu$elm_codepress$Main$states = {
 									}
 								},
 								{
-									ctor: '_Tuple2',
-									_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-									_1: _elm_lang$core$Result$Ok('')
+									ctor: '_Tuple3',
+									_0: _baransu$elm_codepress$Main$left,
+									_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+									_2: _elm_lang$core$Result$Ok('')
 								},
 								_baransu$elm_codepress$Main$defaultScroll,
 								'### Do you know that:\n* I\'m markdown note\n* `with code`\n* [links](http://google.com)\n\n```elixir\n# and code snippets\ndef add(a, b), do: a + b\n```\n```elm\nadd : Int -> Int -> Int\nadd =\n    (+)\n```'),
@@ -29952,9 +29990,10 @@ var _baransu$elm_codepress$Main$states = {
 										_1: {ctor: '[]'}
 									},
 									{
-										ctor: '_Tuple2',
-										_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-										_1: _elm_lang$core$Result$Ok('')
+										ctor: '_Tuple3',
+										_0: _baransu$elm_codepress$Main$left,
+										_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+										_2: _elm_lang$core$Result$Ok('')
 									},
 									_baransu$elm_codepress$Main$defaultScroll,
 									'And you can create single pane highlights'),
@@ -29971,9 +30010,10 @@ var _baransu$elm_codepress$Main$states = {
 											_1: {ctor: '[]'}
 										},
 										{
-											ctor: '_Tuple2',
-											_0: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
-											_1: _elm_lang$core$Result$Ok('')
+											ctor: '_Tuple3',
+											_0: _baransu$elm_codepress$Main$left,
+											_1: _elm_lang$core$Result$Ok(_baransu$elm_codepress$Main$left),
+											_2: _elm_lang$core$Result$Ok('')
 										},
 										_baransu$elm_codepress$Main$defaultScroll,
 										'left'),
@@ -29999,14 +30039,17 @@ var _baransu$elm_codepress$Main$init = {
 		A2(
 			_elm_lang$core$List$map,
 			function (state) {
+				var _p8 = state.code;
+				var fst = _p8._0;
+				var snd = _p8._1;
 				return _elm_lang$core$Native_Utils.update(
 					state,
 					{
 						code: {
-							ctor: '_Tuple2',
-							_0: _elm_lang$core$Tuple$first(state.code),
-							_1: _baransu$elm_codepress$Main$compileElchemy(
-								_elm_lang$core$Tuple$first(state.code))
+							ctor: '_Tuple3',
+							_0: fst,
+							_1: snd,
+							_2: _baransu$elm_codepress$Main$compileElchemy(snd)
 						}
 					});
 			},
@@ -30020,9 +30063,9 @@ var _baransu$elm_codepress$Main$OnScroll = F2(
 	function (a, b) {
 		return {ctor: 'OnScroll', _0: a, _1: b};
 	});
-var _baransu$elm_codepress$Main$options = function (_p4) {
-	var _p5 = _p4;
-	return {position: _p5.position, states: _p5.states, onScroll: _baransu$elm_codepress$Main$OnScroll, onInput: _baransu$elm_codepress$Main$OnInput};
+var _baransu$elm_codepress$Main$options = function (_p9) {
+	var _p10 = _p9;
+	return {position: _p10.position, states: _p10.states, onScroll: _baransu$elm_codepress$Main$OnScroll, onInput: _baransu$elm_codepress$Main$OnInput};
 };
 var _baransu$elm_codepress$Main$NextState = {ctor: 'NextState'};
 var _baransu$elm_codepress$Main$PrevState = {ctor: 'PrevState'};
@@ -30077,9 +30120,9 @@ var _baransu$elm_codepress$Main$view = function (model) {
 			_0: _baransu$elm_codepress$Main$viewNavigation,
 			_1: {
 				ctor: '::',
-				_0: function (_p6) {
+				_0: function (_p11) {
 					return _baransu$elm_codepress$Codepress$toHtml(
-						_baransu$elm_codepress$Main$options(_p6));
+						_baransu$elm_codepress$Main$options(_p11));
 				}(model),
 				_1: {ctor: '[]'}
 			}
@@ -30090,7 +30133,7 @@ var _baransu$elm_codepress$Main$main = _elm_lang$html$Html$program(
 		init: _baransu$elm_codepress$Main$init,
 		update: _baransu$elm_codepress$Main$update,
 		view: _baransu$elm_codepress$Main$view,
-		subscriptions: function (_p7) {
+		subscriptions: function (_p12) {
 			return _elm_lang$core$Platform_Sub$none;
 		}
 	})();

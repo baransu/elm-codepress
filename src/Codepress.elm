@@ -33,7 +33,7 @@ type Pane
 -}
 type alias State =
     { highlights : List Highlight
-    , code : ( Result String String, Result String String )
+    , code : ( String, Result String String, Result String String )
     , scroll : Scroll
     , note : String
     }
@@ -87,10 +87,14 @@ findHighlight pane state =
 
 findCodeString : Pane -> State -> Result String String
 findCodeString pane state =
-    if pane == Left then
-        Tuple.first state.code
-    else
-        Tuple.second state.code
+    let
+        ( _, left, right ) =
+            state.code
+    in
+        if pane == Left then
+            left
+        else
+            right
 
 
 findRegion : Pane -> State -> ( Int, Int )

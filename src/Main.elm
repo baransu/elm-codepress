@@ -50,49 +50,49 @@ states : List State
 states =
     [ State
         [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 0, 0 ), Right >> ( 1, 1 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         "Fancy module transpilation"
 
     --
     , State
         [ Left >> ( 3, 3 ), Right >> ( 4, 4 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         "As you can see, there is awesome `Elchemy` -> `Elixir` type transpilation"
 
     --
     , State
         [ Left >> ( 4, 4 ), Right >> ( 5, 6 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         "Every outputed function is curried thanks to curry macro"
 
     --
     , State
         [ Left >> ( 5, 12 ), Right >> ( 7, 20 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 15, 15 ), Right >> ( 7, 20 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         ""
 
     --
     , State
         [ Left >> ( 16, 16 ), Left >> ( 23, 26 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         """### Do you know that:
 * I'm markdown note
@@ -112,14 +112,14 @@ add =
     --
     , State
         [ Left >> ( 3, 12 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         "And you can create single pane highlights"
 
     --
     , State
         [ Left >> ( 3, 12 ) ]
-        ( Ok left, Ok "" )
+        ( left, Ok left, Ok "" )
         defaultScroll
         "left"
     ]
@@ -134,10 +134,14 @@ init =
     ( Model 0
         (List.map
             (\state ->
-                { state
-                    | code =
-                        ( Tuple.first state.code, compileElchemy (Tuple.first state.code) )
-                }
+                let
+                    ( fst, snd, _ ) =
+                        state.code
+                in
+                    { state
+                        | code =
+                            ( fst, snd, compileElchemy snd )
+                    }
             )
             states
         )
@@ -184,10 +188,14 @@ updateState model input =
             model
 
         update state =
-            { state
-                | highlights = []
-                , code = ( Ok input, compileElchemy (Ok input) )
-            }
+            let
+                ( fst, _, _ ) =
+                    state.code
+            in
+                { state
+                    | highlights = []
+                    , code = ( fst, Ok input, compileElchemy (Ok input) )
+                }
     in
         { model
             | states =
@@ -197,14 +205,32 @@ updateState model input =
         }
 
 
+resetState : Model -> List State
+resetState { states, position } =
+    let
+        update state =
+            let
+                ( fst, _, _ ) =
+                    state.code
+            in
+                { state
+                    | highlights = []
+                    , code = ( fst, Ok fst, compileElchemy (Ok fst) )
+                }
+    in
+        states
+            |> EList.updateAt position update
+            |> Maybe.withDefault []
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         OnScroll pane scroll ->
-            ( updateScroll model pane scroll, Cmd.none )
+            (updateScroll model pane scroll) >> Cmd.none
 
         OnInput input ->
-            ( updateState model input, Cmd.none )
+            (updateState model input) >> Cmd.none
 
         PrevState ->
             let
@@ -214,7 +240,11 @@ update msg model =
                     else
                         model.position
             in
-                ( { model | position = position }, Cmd.none )
+                { model
+                    | states = resetState model
+                    , position = position
+                }
+                    >> Cmd.none
 
         NextState ->
             let
@@ -224,7 +254,11 @@ update msg model =
                     else
                         model.position
             in
-                ( { model | position = position }, Cmd.none )
+                { model
+                    | states = resetState model
+                    , position = position
+                }
+                    >> Cmd.none
 
 
 main : Program Never Model Msg
