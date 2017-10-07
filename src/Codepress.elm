@@ -1,241 +1,194 @@
-module Codepress exposing (State, Options, toHtml, Scroll, Pane(..))
+module Codepress exposing (Model, Msg, view, update, initialModel, state)
 
-{-| TODO: Add documentation
+{-| Types
+@docs Model, Msg
+
+The Elm Architecture
+@docs view, update, initialModel
+
+Helpers
+@docs state
+
 -}
 
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events as Events exposing (onInput)
-import Markdown
+import Html exposing (Html, text, button, div)
+import Html.Events exposing (onClick)
+import Html.Attributes exposing (class)
 import List.Extra as EList
-import SyntaxHighlight as SH exposing (Highlight(..))
-import Json.Decode as Decode
+import Native.Hacks
+import Compiler
+import Codepress.View as View exposing (Options, toHtml)
+import Codepress.Helpers exposing ((=>))
+import Codepress.Types exposing (State, Scroll, Pane(..), Highlight)
 
 
--- PUBLIC API
-
-
-{-| TODO: Add documentation
+{-| TODO: documentation
 -}
-toHtml : Options msg -> Html msg
-toHtml =
-    view
+type Msg
+    = PrevState
+    | NextState
+    | OnScroll Pane Scroll
+    | OnInput String
 
 
-{-| TODO: Add documentation
+{-| TODO: documentation
 -}
-type Pane
-    = Left
-    | Right
+type alias Model =
+    { position : Int, states : List State }
 
 
-{-| TODO: Add documentation
+{-| TODO: documentation
 -}
-type alias State =
-    { highlights : List Highlight
-    , code : ( String, Result String String, Result String String )
-    , scroll : Scroll
-    , note : String
+state : String -> String -> List Highlight -> State
+state code note highlights =
+    { highlights = highlights
+    , code = ( code, Ok code, compileElchemy (Ok code) )
+    , scroll = Scroll 0 0
+    , note = note
     }
 
 
-{-| TODO: Add documentation
+{-| TODO: documentation
 -}
-type alias Scroll =
-    { top : Int
-    , left : Int
+initialModel : List State -> Model
+initialModel states =
+    { position = 0
+    , states = states
     }
 
 
-{-| TODO: Add documentation
--}
-type alias Options msg =
-    { states : List State
-    , position : Int
-    , onScroll : Pane -> Scroll -> msg
-    , onInput : String -> msg
+options : Model -> Options Msg
+options { position, states } =
+    { navigation = True
+    , position = position
+    , states = states
+    , onScroll = OnScroll
+    , onInput = OnInput
     }
 
 
+{-| TODO: documentation
+-}
+view : Model -> Html Msg
+view model =
+    div [ class "app" ]
+        [ (viewNavigation << options) model
+        , (toHtml << options) model
+        ]
 
--- PRIVATE API
 
-
-type alias Highlight =
-    ( Pane, ( Int, Int ) )
-
-
-activeStyle : Bool -> List ( String, String )
-activeStyle active =
-    if active == True then
-        [ ( "color", "#eff0eb" ) ]
+viewNavigation : Options Msg -> Html Msg
+viewNavigation { navigation } =
+    if navigation == True then
+        div [ class "navigation" ]
+            [ button [ onClick PrevState ] [ text "previous" ]
+            , button [ onClick NextState ] [ text "next" ]
+            ]
     else
-        []
+        div [] []
 
 
-getStateAt : List State -> Int -> Maybe State
-getStateAt states position =
-    EList.getAt position states
-
-
-findHighlight : Pane -> State -> Maybe Highlight
-findHighlight pane state =
-    EList.find
-        (\( p, _ ) -> p == pane)
-        state.highlights
-
-
-findCodeString : Pane -> State -> Result String String
-findCodeString pane state =
+updateScroll : Model -> Pane -> Scroll -> Model
+updateScroll model pane scroll =
     let
-        ( _, left, right ) =
-            state.code
+        { position, states } =
+            model
     in
-        if pane == Left then
-            left
-        else
-            right
+        { model
+            | states =
+                states
+                    |> EList.updateAt position (\a -> { a | scroll = scroll })
+                    |> Maybe.withDefault []
+        }
 
 
-findRegion : Pane -> State -> ( Int, Int )
-findRegion pane state =
-    case findHighlight pane state of
-        Just ( _, positions ) ->
-            positions
+updateState : Model -> String -> Model
+updateState model input =
+    let
+        { states, position } =
+            model
+
+        update state =
+            let
+                ( fst, _, _ ) =
+                    state.code
+            in
+                { state
+                    | highlights = []
+                    , code = ( fst, Ok input, compileElchemy (Ok input) )
+                }
+    in
+        { model
+            | states =
+                states
+                    |> EList.updateAt position update
+                    |> Maybe.withDefault []
+        }
+
+
+resetState : Model -> List State
+resetState { states, position } =
+    let
+        update state =
+            let
+                ( fst, _, _ ) =
+                    state.code
+            in
+                { state
+                    | highlights = []
+                    , code = ( fst, Ok fst, compileElchemy (Ok fst) )
+                }
+    in
+        states
+            |> EList.updateAt position update
+            |> Maybe.withDefault []
+
+
+{-| TODO: documentation
+-}
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        OnScroll pane scroll ->
+            (updateScroll model pane scroll) => Cmd.none
+
+        OnInput input ->
+            (updateState model input) => Cmd.none
+
+        PrevState ->
+            let
+                position =
+                    if model.position > 0 then
+                        model.position - 1
+                    else
+                        model.position
+            in
+                { model
+                    | states = resetState model
+                    , position = position
+                }
+                    => Cmd.none
+
+        NextState ->
+            let
+                position =
+                    if model.position < (List.length model.states - 1) then
+                        model.position + 1
+                    else
+                        model.position
+            in
+                { model
+                    | states = resetState model
+                    , position = position
+                }
+                    => Cmd.none
+
+
+compileElchemy : Result String String -> Result String String
+compileElchemy input =
+    case input of
+        Ok i ->
+            Native.Hacks.tryCatch Compiler.tree i
 
         _ ->
-            ( 0, -1 )
-
-
-unwrapState : Maybe State -> Pane -> ( Result String String, ( Int, Int ), Scroll )
-unwrapState state pane =
-    case state of
-        Just state ->
-            let
-                str =
-                    findCodeString pane state
-
-                region =
-                    findRegion pane state
-            in
-                ( str, region, state.scroll )
-
-        Nothing ->
-            ( Ok "", ( 0, -1 ), Scroll 0 0 )
-
-
-viewLeft : Options msg -> Maybe State -> List (Html msg)
-viewLeft options state =
-    let
-        ( content, ( start, end ), scroll ) =
-            unwrapState state Left
-
-        str =
-            case content of
-                Ok str ->
-                    str
-
-                Err err ->
-                    err
-    in
-        [ div
-            [ class "view-container"
-            , style
-                [ ( "transform"
-                  , "translate("
-                        ++ toString -scroll.left
-                        ++ "px, "
-                        ++ toString -scroll.top
-                        ++ "px)"
-                  )
-                , ( "will-change", "transform" )
-                ]
-            ]
-            [ SH.useTheme SH.oneDark
-            , if String.length str == 0 then
-                pre [] [ code [] [] ]
-              else
-                SH.elm str
-                    |> Result.map (SH.highlightLines (Just Highlight) (start - 1) end)
-                    |> Result.map (SH.toBlockHtml <| Just 1)
-                    |> Result.withDefault
-                        (pre [] [ code [] [ text str ] ])
-            ]
-        , textarea
-            [ value str
-            , classList
-                [ ( "textarea", True )
-                , ( "textarea-lc", True )
-                ]
-            , spellcheck False
-            , onScroll <| options.onScroll Left
-            , onInput options.onInput
-            ]
-            []
-        ]
-
-
-viewRight : Options msg -> Maybe State -> List (Html msg)
-viewRight options state =
-    let
-        ( content, ( start, end ), _ ) =
-            unwrapState state Right
-    in
-        [ div
-            [ class "view-container" ]
-          <|
-            case content of
-                Ok str ->
-                    [ Markdown.toHtml [] ("```elixir\n" ++ str ++ "\n```")
-                    , div
-                        [ class "elmsh-line elmsh-hl"
-                        , style
-                            [ ( "position", "absolute" )
-                            , ( "top", toString ((start - 1) * 15) ++ "px " )
-                            , ( "width", "100%" )
-                            , ( "height", toString ((end - start + 1) * 15) ++ "px" )
-                            ]
-                        ]
-                        []
-                    ]
-
-                Err err ->
-                    [ Markdown.toHtml [ class "error" ] ("```\n" ++ err ++ "\n```") ]
-        ]
-
-
-view : Options msg -> Html msg
-view options =
-    let
-        state =
-            getStateAt options.states options.position
-    in
-        div [ class "presentation" ]
-            [ div [ class "pane left container" ] <| viewLeft options state
-            , div [ class "pane right container" ] <| viewRight options state
-            , viewNote options
-            ]
-
-
-viewNote : Options msg -> Html msg
-viewNote { states, position } =
-    case getStateAt states position of
-        Just { note } ->
-            if note == "" then
-                div [] []
-            else
-                div [ class "note" ]
-                    [ Markdown.toHtml [ class "markdown-body" ] note
-                    ]
-
-        Nothing ->
-            div [] []
-
-
-onScroll msg =
-    Events.on "scroll"
-        (Decode.map2 Scroll
-            (Decode.at [ "target", "scrollTop" ] Decode.int)
-            (Decode.at [ "target", "scrollLeft" ] Decode.int)
-            |> Decode.map msg
-        )
+            input

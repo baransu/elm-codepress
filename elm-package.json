@@ -3,8 +3,8 @@
   "summary": "helpful summary of your project, less than 80 characters",
   "repository": "https://github.com/baransu/elm-codepress.git",
   "license": "BSD3",
-  "source-directories": ["./src"],
-  "exposed-modules": [],
+  "source-directories": ["src"],
+  "exposed-modules": ["Codepress", "Codepress.Types", "Codepress.Helpers"],
   "native-modules": true,
   "dependencies": {
     "elm-community/list-extra": "5.0.0 <= v < 6.0.0",
@@ -18,7 +18,7 @@
   "dependency-sources": {
     "wende/elchemy": {
       "url": "git@github.com:wende/elchemy",
-      "ref": "0.4.34"
+      "ref": "0.4.50"
     }
   },
   "elm-version": "0.18.0 <= v < 0.19.0"

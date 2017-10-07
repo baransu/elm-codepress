@@ -52,7 +52,7 @@ pre {
   display: inline-block;
 }
 
-.textarea,
+textarea,
 .view-container {
   box-sizing: border-box;
   font-size: 1rem;
@@ -77,7 +77,7 @@ pre {
   z-index: 1;
 }
 
-.textarea {
+textarea {
   caret-color: #528bff;
   color: rgba(0, 0, 0, 0);
   resize: none;
@@ -89,11 +89,11 @@ pre {
   padding-left: 60px;
 }
 
-.textarea:focus {
+textarea:focus {
   outline: none;
 }
 
-.textarea::selection {
+textarea::selection {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
@@ -115,16 +115,6 @@ pre {
   margin: 0;
 }
 
-#error-dialog {
-  top: 0;
-  right: 0;
-  position: absolute;
-  background-color: #fff;
-  z-index: 666;
-  color: red;
-  padding: 10px;
-}
-
 /* Elm Syntax Highlight CSS */
 
 pre.elmsh {
@@ -144,8 +134,4 @@ code.elmsh {
   width: 40px;
   padding: 0 20px 0 0;
   opacity: 0.3;
-}
-
-#worker {
-  visibility: hidden;
 }
