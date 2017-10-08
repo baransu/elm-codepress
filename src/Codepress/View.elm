@@ -1,17 +1,17 @@
-module Codepress.View exposing (Options, toHtml)
+module Codepress.View exposing (toHtml)
 
 {-| TODO: Add documentation
 -}
 
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events as Events exposing (onInput)
+import Html.Events as Events exposing (onInput, onClick)
 import Markdown
 import List.Extra as EList
 import SyntaxHighlight as SH exposing (Highlight(..))
 import Json.Decode as Decode
 import Codepress.Helpers exposing ((=>))
-import Codepress.Types as Types exposing (Scroll, State, Pane(..))
+import Codepress.Types as Types exposing (Scroll, State, Pane(..), Options)
 
 
 -- PUBLIC API
@@ -22,17 +22,6 @@ import Codepress.Types as Types exposing (Scroll, State, Pane(..))
 toHtml : Options msg -> Html msg
 toHtml =
     view
-
-
-{-| TODO: Add documentation
--}
-type alias Options msg =
-    { navigation : Bool
-    , states : List State
-    , position : Int
-    , onScroll : Pane -> Scroll -> msg
-    , onInput : String -> msg
-    }
 
 
 
@@ -150,7 +139,7 @@ viewRight options state =
             Ok str ->
                 [ Markdown.toHtml [] ("```elixir\n" ++ str ++ "\n```")
                 , div
-                    [ class "elmsh-line elmsh-hl"
+                    [ class "elmsh-line elmsh-hl line-hl"
                     , style
                         [ "position" => "absolute"
                         , "top" => ((toString ((start - 1) * 15)) ++ "px")
@@ -168,7 +157,7 @@ viewRight options state =
 presentationStyle : Options msg -> List ( String, String )
 presentationStyle { navigation } =
     if navigation == True then
-        [ "height" => "calc(100vh - 40px)" ]
+        [ "height" => "calc(100vh - 60px)" ]
     else
         [ "height" => "100vh" ]
 
@@ -187,20 +176,22 @@ view options =
 
 
 viewNote : Options msg -> Html msg
-viewNote { states, position } =
+viewNote { states, position, noteCollapse } =
     case getStateAt states position of
         Just { note } ->
             if note == "" then
                 div [] []
             else
-                div [ class "note" ]
-                    [ Markdown.toHtml [ class "markdown-body" ] note
+                div [ classList [ "note" => True, "collapsed" => noteCollapse ] ]
+                    [ Markdown.toHtml [ class "markdown-body" ]
+                        note
                     ]
 
         Nothing ->
             div [] []
 
 
+onScroll : (Scroll -> msg) -> Attribute msg
 onScroll msg =
     Events.on "scroll"
         (Decode.map2 Scroll

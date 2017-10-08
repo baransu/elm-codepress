@@ -1,7 +1,7 @@
 module Codepress.Types exposing (..)
 
 {-| Stuff
-@docs Pane, Highlight, State, Scroll
+@docs Options, Pane, Highlight, State, Scroll
 -}
 
 
@@ -33,4 +33,16 @@ type alias State =
 type alias Scroll =
     { top : Int
     , left : Int
+    }
+
+
+{-| TODO: Add documentation
+-}
+type alias Options msg =
+    { noteCollapse : Bool
+    , navigation : Bool
+    , states : List State
+    , position : Int
+    , onScroll : Pane -> Scroll -> msg
+    , onInput : String -> msg
     }

@@ -11,15 +11,15 @@ Helpers
 
 -}
 
-import Html exposing (Html, text, button, div)
+import Html exposing (Html, text, button, div, h2, label, input)
 import Html.Events exposing (onClick)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, type_)
 import List.Extra as EList
 import Native.Hacks
 import Compiler
-import Codepress.View as View exposing (Options, toHtml)
+import Codepress.View as View exposing (toHtml)
 import Codepress.Helpers exposing ((=>))
-import Codepress.Types exposing (State, Scroll, Pane(..), Highlight)
+import Codepress.Types exposing (Options, State, Scroll, Pane(..), Highlight)
 
 
 {-| TODO: documentation
@@ -29,12 +29,13 @@ type Msg
     | NextState
     | OnScroll Pane Scroll
     | OnInput String
+    | OnCollapse
 
 
 {-| TODO: documentation
 -}
 type alias Model =
-    { position : Int, states : List State }
+    { position : Int, states : List State, title : String, noteCollapse : Bool }
 
 
 {-| TODO: documentation
@@ -50,16 +51,19 @@ state code note highlights =
 
 {-| TODO: documentation
 -}
-initialModel : List State -> Model
-initialModel states =
+initialModel : List State -> String -> Model
+initialModel states title =
     { position = 0
+    , title = title
     , states = states
+    , noteCollapse = False
     }
 
 
 options : Model -> Options Msg
-options { position, states } =
-    { navigation = True
+options { position, states, noteCollapse } =
+    { noteCollapse = noteCollapse
+    , navigation = True
     , position = position
     , states = states
     , onScroll = OnScroll
@@ -71,21 +75,39 @@ options { position, states } =
 -}
 view : Model -> Html Msg
 view model =
-    div [ class "app" ]
-        [ (viewNavigation << options) model
-        , (toHtml << options) model
-        ]
-
-
-viewNavigation : Options Msg -> Html Msg
-viewNavigation { navigation } =
-    if navigation == True then
-        div [ class "navigation" ]
-            [ button [ onClick PrevState ] [ text "previous" ]
-            , button [ onClick NextState ] [ text "next" ]
+    let
+        opt =
+            options model
+    in
+        div [ class "app" ]
+            [ viewNavigation opt model
+            , toHtml opt
             ]
-    else
-        div [] []
+
+
+viewNavigation : Options Msg -> Model -> Html Msg
+viewNavigation { navigation } { position, states, title } =
+    let
+        count =
+            (toString position) ++ " / " ++ (states |> List.length |> flip (-) 1 |> toString)
+    in
+        if navigation == True then
+            div [ class "navigation" ]
+                [ div [ class "slides" ] [ text <| "Slides: " ++ count ]
+                , h2 [] [ text title ]
+                , div [ class "buttons" ]
+                    [ label []
+                        [ input [ type_ "checkbox", onClick OnCollapse ] []
+                        , text "Show notes"
+                        ]
+                    , div []
+                        [ button [ onClick PrevState ] [ text "Previous slide" ]
+                        , button [ onClick NextState ] [ text "Next slide" ]
+                        ]
+                    ]
+                ]
+        else
+            div [] []
 
 
 updateScroll : Model -> Pane -> Scroll -> Model
@@ -149,6 +171,9 @@ resetState { states, position } =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        OnCollapse ->
+            ({ model | noteCollapse = not model.noteCollapse }) => Cmd.none
+
         OnScroll pane scroll ->
             (updateScroll model pane scroll) => Cmd.none
 

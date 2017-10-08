@@ -3,8 +3,8 @@ start:
 	 --output=example/elm.js \
 	 --pushstate \
 	 --open \
-	 --debug \
-	 --dir=./example
+	 --dir=./example \
+	# --debug \
 
 build:
 	elm-make src/Main.elm --output=example/elm.js --debug

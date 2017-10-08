@@ -6,13 +6,13 @@ html,
   height: 100vh;
   margin: 0;
   padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
 }
 
 .presentation {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial,
-    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
   position: absolute;
-  top: 40px;
+  top: 60px;
   left: 0;
   width: 100vw;
   height: calc(100vh - 40px);
@@ -39,7 +39,16 @@ pre {
   font-size: 20px;
   bottom: 30px;
   left: 50%;
+  max-width: calc(100vw - 20px);
+  max-height: 50vh;
   transform: translate(-50%, 0%);
+  overflow-y: scroll;
+  transition: all 0.1s ease-in-out;
+  opacity: 1;
+}
+
+.note.collapsed {
+  opacity: 0;
 }
 
 .pane {
@@ -97,22 +106,44 @@ textarea::selection {
   background-color: rgba(255, 255, 255, 0.2);
 }
 
+.line-hl {
+  max-width: 50vw;
+}
+
 .navigation {
   text-align: center;
   position: absolute;
-  background-color: #fff;
-  font-size: 20px;
+  background-color: #21252b;
+  color: #fafafa;
+  font-size: 16px;
   top: 0px;
-  height: 40px;
+  height: 60px;
   width: 100vw;
   z-index: 101;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.navigation > button {
-  height: 100%;
-  text-align: center;
-  width: 100px;
-  margin: 0;
+.navigation > h2 {
+  flex: 4;
+}
+
+.navigation > .slides {
+  flex: 1;
+  padding: 0 10px;
+}
+
+.navigation > .buttons {
+  flex: 1;
+  padding: 0 10px;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+}
+
+.buttons > * {
+  padding: 0 10px;
 }
 
 /* Elm Syntax Highlight CSS */
