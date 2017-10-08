@@ -29819,93 +29819,80 @@ var _baransu$elm_codepress$Codepress_View$viewRight = F2(
 		var content = _p10._0;
 		var start = _p10._1._0;
 		var end = _p10._1._1;
-		return {
-			ctor: '::',
-			_0: A2(
-				_elm_lang$html$Html$div,
-				{
+		var _p11 = content;
+		if (_p11.ctor === 'Ok') {
+			return {
+				ctor: '::',
+				_0: A2(
+					_evancz$elm_markdown$Markdown$toHtml,
+					{ctor: '[]'},
+					A2(
+						_elm_lang$core$Basics_ops['++'],
+						'```elixir\n',
+						A2(_elm_lang$core$Basics_ops['++'], _p11._0, '\n```'))),
+				_1: {
 					ctor: '::',
-					_0: _elm_lang$html$Html_Attributes$class('view-container'),
-					_1: {ctor: '[]'}
-				},
-				function () {
-					var _p11 = content;
-					if (_p11.ctor === 'Ok') {
-						return {
+					_0: A2(
+						_elm_lang$html$Html$div,
+						{
 							ctor: '::',
-							_0: A2(
-								_evancz$elm_markdown$Markdown$toHtml,
-								{ctor: '[]'},
-								A2(
-									_elm_lang$core$Basics_ops['++'],
-									'```elixir\n',
-									A2(_elm_lang$core$Basics_ops['++'], _p11._0, '\n```'))),
+							_0: _elm_lang$html$Html_Attributes$class('elmsh-line elmsh-hl'),
 							_1: {
 								ctor: '::',
-								_0: A2(
-									_elm_lang$html$Html$div,
+								_0: _elm_lang$html$Html_Attributes$style(
 									{
 										ctor: '::',
-										_0: _elm_lang$html$Html_Attributes$class('elmsh-line elmsh-hl'),
+										_0: A2(_baransu$elm_codepress$Codepress_Helpers_ops['=>'], 'position', 'absolute'),
 										_1: {
 											ctor: '::',
-											_0: _elm_lang$html$Html_Attributes$style(
-												{
+											_0: A2(
+												_baransu$elm_codepress$Codepress_Helpers_ops['=>'],
+												'top',
+												A2(
+													_elm_lang$core$Basics_ops['++'],
+													_elm_lang$core$Basics$toString((start - 1) * 15),
+													'px')),
+											_1: {
+												ctor: '::',
+												_0: A2(_baransu$elm_codepress$Codepress_Helpers_ops['=>'], 'width', '100%'),
+												_1: {
 													ctor: '::',
-													_0: A2(_baransu$elm_codepress$Codepress_Helpers_ops['=>'], 'position', 'absolute'),
-													_1: {
-														ctor: '::',
-														_0: A2(
-															_baransu$elm_codepress$Codepress_Helpers_ops['=>'],
-															'top',
-															A2(
-																_elm_lang$core$Basics_ops['++'],
-																_elm_lang$core$Basics$toString((start - 1) * 15),
-																'px')),
-														_1: {
-															ctor: '::',
-															_0: A2(_baransu$elm_codepress$Codepress_Helpers_ops['=>'], 'width', '100%'),
-															_1: {
-																ctor: '::',
-																_0: A2(
-																	_baransu$elm_codepress$Codepress_Helpers_ops['=>'],
-																	'height',
-																	A2(
-																		_elm_lang$core$Basics_ops['++'],
-																		_elm_lang$core$Basics$toString(((end - start) + 1) * 15),
-																		'px')),
-																_1: {ctor: '[]'}
-															}
-														}
-													}
-												}),
-											_1: {ctor: '[]'}
+													_0: A2(
+														_baransu$elm_codepress$Codepress_Helpers_ops['=>'],
+														'height',
+														A2(
+															_elm_lang$core$Basics_ops['++'],
+															_elm_lang$core$Basics$toString(((end - start) + 1) * 15),
+															'px')),
+													_1: {ctor: '[]'}
+												}
+											}
 										}
-									},
-									{ctor: '[]'}),
+									}),
 								_1: {ctor: '[]'}
 							}
-						};
-					} else {
-						return {
-							ctor: '::',
-							_0: A2(
-								_evancz$elm_markdown$Markdown$toHtml,
-								{
-									ctor: '::',
-									_0: _elm_lang$html$Html_Attributes$class('error'),
-									_1: {ctor: '[]'}
-								},
-								A2(
-									_elm_lang$core$Basics_ops['++'],
-									'```\n',
-									A2(_elm_lang$core$Basics_ops['++'], _p11._0, '\n```'))),
-							_1: {ctor: '[]'}
-						};
-					}
-				}()),
-			_1: {ctor: '[]'}
-		};
+						},
+						{ctor: '[]'}),
+					_1: {ctor: '[]'}
+				}
+			};
+		} else {
+			return {
+				ctor: '::',
+				_0: A2(
+					_evancz$elm_markdown$Markdown$toHtml,
+					{
+						ctor: '::',
+						_0: _elm_lang$html$Html_Attributes$class('error'),
+						_1: {ctor: '[]'}
+					},
+					A2(
+						_elm_lang$core$Basics_ops['++'],
+						'```\n',
+						A2(_elm_lang$core$Basics_ops['++'], _p11._0, '\n```'))),
+				_1: {ctor: '[]'}
+			};
+		}
 	});
 var _baransu$elm_codepress$Codepress_View$getStateAt = F2(
 	function (states, position) {
@@ -30227,12 +30214,18 @@ var _baransu$elm_codepress$Codepress$view = function (model) {
 		});
 };
 
-var _baransu$elm_codepress$Main$left = 'module FizzBuzz exposing (fizzbuzz)\n\n\nfizzbuzz : Int -> Int -> String\nfizzbuzz from to =\n  let\n    fizzBuzz n =\n        case (n % 3, n % 5) of\n            (0, 0) -> \"FizzBuzz\"\n            (0, _) -> \"Fizz\"\n            (_, 0) -> \"Buzz\"\n            _      -> toString n\n  in List.range from to |> map (fizzBuzz => toString) |> joinWords\n\n\njoinWords : List String -> String\njoinWords a = String.join \" \" a';
+var _baransu$elm_codepress$Main$left = 'module FizzBuzz exposing (fizzbuzz)\n\n\nfizzbuzz : Int -> Int -> String\nfizzbuzz from to =\n  let\n    fizzBuzz n =\n        case (n % 3, n % 5) of\n            (0, 0) -> \"FizzBuzz\"\n            (0, _) -> \"Fizz\"\n            (_, 0) -> \"Buzz\"\n            _      -> toString n\n  in List.range from to |> map (fizzBuzz => toString) |> joinWords\n\n\njoinWords : List String -> String\njoinWords a = String.join \" \" a\n\n\n';
 var _baransu$elm_codepress$Main$states = {
 	ctor: '::',
 	_0: A3(
 		_baransu$elm_codepress$Codepress$state,
-		_baransu$elm_codepress$Main$left,
+		A2(
+			_elm_lang$core$Basics_ops['++'],
+			_baransu$elm_codepress$Main$left,
+			A2(
+				_elm_lang$core$Basics_ops['++'],
+				_baransu$elm_codepress$Main$left,
+				A2(_elm_lang$core$Basics_ops['++'], _baransu$elm_codepress$Main$left, _baransu$elm_codepress$Main$left))),
 		'',
 		{
 			ctor: '::',

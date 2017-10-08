@@ -146,27 +146,23 @@ viewRight options state =
         ( content, ( start, end ), _ ) =
             unwrapState state Right
     in
-        [ div
-            [ class "view-container" ]
-          <|
-            case content of
-                Ok str ->
-                    [ Markdown.toHtml [] ("```elixir\n" ++ str ++ "\n```")
-                    , div
-                        [ class "elmsh-line elmsh-hl"
-                        , style
-                            [ "position" => "absolute"
-                            , "top" => ((toString ((start - 1) * 15)) ++ "px")
-                            , "width" => "100%"
-                            , "height" => ((toString ((end - start + 1) * 15)) ++ "px")
-                            ]
+        case content of
+            Ok str ->
+                [ Markdown.toHtml [] ("```elixir\n" ++ str ++ "\n```")
+                , div
+                    [ class "elmsh-line elmsh-hl"
+                    , style
+                        [ "position" => "absolute"
+                        , "top" => ((toString ((start - 1) * 15)) ++ "px")
+                        , "width" => "100%"
+                        , "height" => ((toString ((end - start + 1) * 15)) ++ "px")
                         ]
-                        []
                     ]
+                    []
+                ]
 
-                Err err ->
-                    [ Markdown.toHtml [ class "error" ] ("```\n" ++ err ++ "\n```") ]
-        ]
+            Err err ->
+                [ Markdown.toHtml [ class "error" ] ("```\n" ++ err ++ "\n```") ]
 
 
 presentationStyle : Options msg -> List ( String, String )

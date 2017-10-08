@@ -33,12 +33,15 @@ fizzbuzz from to =
 
 
 joinWords : List String -> String
-joinWords a = String.join " " a"""
+joinWords a = String.join " " a
+
+
+"""
 
 
 states : List State
 states =
-    [ state left "" [ Left => ( 0, 0 ), Right => ( 1, 1 ) ]
+    [ state (left ++ left ++ left ++ left) "" [ Left => ( 0, 0 ), Right => ( 1, 1 ) ]
 
     --
     , state left "" [ Left => ( 0, 0 ), Right => ( 1, 1 ) ]
